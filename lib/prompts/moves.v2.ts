@@ -2,7 +2,7 @@ import type { Move, OptionsRequest } from "../types";
 import { FOCUSES, DOMAINS, FORMATS, ARCHETYPES } from "../types";
 import { catalog, catalogById } from "../engine/catalog";
 
-export const PROMPT_VERSION = "moves.v1";
+export const PROMPT_VERSION = "moves.v2";
 
 /** JSON schema for one move (no id). Shared by Ollama `format` and Gemini `responseJsonSchema`. */
 export const movesJsonSchema = {
@@ -41,9 +41,10 @@ Audience: senior computer science majors at a large public university in their f
 Rules for every move:
 - Concrete, doable, specific. Good: "Ship a PR that fixes one good-first-issue in a repo you already use". Bad: "Explore open source".
 - Title: imperative, at most 60 characters. Detail: exactly one sentence.
-- Do not invent club names, real people, or prices. If a move costs money, write [PRICE] in the detail.
+- Do not invent club names, product, newsletter or company names, real people, or prices. If a move costs money, write [PRICE] in the detail.
+- Offer a paid move only when a paid option is genuinely better than the free ones (for example being paired with a senior mentor). Most sets should be all free. Never make a paid move the only route to the goal.
 - Do not include beginner moves (like "learn what Git is") unless the wish is explicitly beginner-level.
-- Return exactly 3 moves: at least 2 with cost "free", at most 1 with cost "paid". The 3 options must be meaningfully different from each other (different formats or approaches).
+- Return exactly 3 moves: at least 2 with cost "free" (usually all 3), at most 1 with cost "paid". The 3 options must be meaningfully different from each other (different formats or approaches).
 
 Step meaning:
 - Move 1 (step 1): small and quick, a fast first win, under about 60 minutes.

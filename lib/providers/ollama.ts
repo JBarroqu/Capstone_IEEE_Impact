@@ -1,5 +1,5 @@
 import { config } from "../config";
-import { movesJsonSchema } from "../prompts/moves.v1";
+import { movesJsonSchema } from "../prompts/moves.v2";
 import { makeLlmProvider, type Generate } from "./llm";
 
 export function ollamaProvider() {

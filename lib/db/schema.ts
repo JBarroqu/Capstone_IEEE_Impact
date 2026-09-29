@@ -3,7 +3,6 @@ import { pgTable, uuid, text, timestamp, integer, jsonb, boolean, index, primary
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey(),
   participantCode: text("participant_code").notNull(),
-  theme: text("theme").notNull(),
   provider: text("provider"),
   appVersion: text("app_version"),
   consented: boolean("consented").notNull().default(false),
@@ -35,7 +34,6 @@ export const events = pgTable(
     sessionId: uuid("session_id").notNull(),
     wishId: uuid("wish_id"),
     participantCode: text("participant_code").notNull(),
-    theme: text("theme").notNull(),
     appVersion: text("app_version").notNull(),
     provider: text("provider"),
     name: text("name").notNull(),

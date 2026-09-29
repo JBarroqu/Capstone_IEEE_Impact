@@ -5,13 +5,12 @@ const env = (k: string, d = "") => process.env[k] ?? d;
 export const config = {
   provider: env("MOVE_PROVIDER", "gemini") as ProviderName,
   geminiKey: env("GEMINI_API_KEY"),
-  geminiModel: env("GEMINI_MODEL", "gemini-2.5-flash"),
+  geminiModel: env("GEMINI_MODEL", "gemini-3.1-flash-lite"),
   ollamaUrl: env("OLLAMA_URL", "http://localhost:11434"),
   ollamaModel: env("OLLAMA_MODEL", "llama3.1:8b"),
   llmTimeoutMs: Number(env("LLM_TIMEOUT_MS", "12000")),
   llmCache: env("LLM_CACHE", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
-  defaultTheme: env("DEFAULT_THEME", "index-card"),
   adminPassword: env("ADMIN_PASSWORD"),
   appVersion: "0.1.0",
 };

@@ -1,7 +1,7 @@
 "use client";
 import type { ClientEvent } from "./events";
 
-type Ctx = { sessionId: string; participantCode: string; theme: string; wishId?: string | null };
+type Ctx = { sessionId: string; participantCode: string; wishId?: string | null };
 let ctx: Ctx | null = null;
 let queue: ClientEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -16,7 +16,7 @@ export function track(name: ClientEvent["name"], payload: Record<string, unknown
     name, payload, step: step ?? null,
     clientTs: new Date().toISOString(),
     sessionId: ctx.sessionId, wishId: ctx.wishId ?? null,
-    participantCode: ctx.participantCode, theme: ctx.theme,
+    participantCode: ctx.participantCode,
   });
   if (!timer) timer = setTimeout(flush, 1500);
 }

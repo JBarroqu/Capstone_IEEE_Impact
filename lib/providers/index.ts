@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { config } from "../config";
-import { PROMPT_VERSION } from "../prompts/moves.v1";
+import { PROMPT_VERSION } from "../prompts/moves.v2";
 import { staticGetOptions, normalizeTitle } from "../engine/select";
 import type { Move, MoveProvider, OptionsRequest, OptionsResult } from "../types";
 import { ollamaProvider } from "./ollama";

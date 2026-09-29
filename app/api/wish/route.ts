@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { ARCHETYPES, DOMAINS, FOCUSES } from "@/lib/types";
 
@@ -19,12 +18,10 @@ export async function POST(req: Request) {
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
   const { id, sessionId, ...rest } = p.data;
-  const db = getDb();
-  const existing = await db.select({ id: schema.wishes.id }).from(schema.wishes).where(eq(schema.wishes.id, id)).limit(1);
-  if (existing.length) await db.update(schema.wishes).set(rest).where(eq(schema.wishes.id, id));
-  else {
-    if (!rest.text) return NextResponse.json({ ok: false, error: "text required" }, { status: 400 });
-    await db.insert(schema.wishes).values({ id, sessionId, ...rest, text: rest.text });
-  }
+  // True upsert: client updates for one wish can arrive out of order, so insert-or-update in one statement.
+  await getDb()
+    .insert(schema.wishes)
+    .values({ id, sessionId, ...rest, text: rest.text ?? "" })
+    .onConflictDoUpdate({ target: schema.wishes.id, set: rest });
   return NextResponse.json({ ok: true });
 }

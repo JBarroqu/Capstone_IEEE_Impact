@@ -15,7 +15,6 @@ export async function POST(req: Request) {
       sessionId: e.sessionId,
       wishId: e.wishId ?? null,
       participantCode: e.participantCode,
-      theme: e.theme,
       appVersion: config.appVersion,
       provider: typeof e.payload.used_provider === "string" ? e.payload.used_provider : config.provider,
       name: e.name,

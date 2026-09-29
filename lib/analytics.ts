@@ -2,7 +2,7 @@ import type { Move } from "./types";
 
 export type EventRow = {
   id?: string; createdAt: Date | string; sessionId: string; wishId: string | null; participantCode: string;
-  theme: string; provider: string | null; name: string; step: number | null; payload: Record<string, any>;
+  provider: string | null; name: string; step: number | null; payload: Record<string, any>;
 };
 export type WishRow = {
   id: string; sessionId: string; text: string; type: string | null; focus: string[] | null; domains: string[] | null;
@@ -108,7 +108,7 @@ export function feedback(ev: EventRow[], wishes: WishRow[]) {
   };
 }
 
-/** Key numbers used for the side-by-side theme/provider comparisons. */
+/** Key numbers used for the side-by-side provider comparisons. */
 export function keyNumbers(ev: EventRow[]) {
   const f = funnel(ev);
   const fb = feedback(ev, []);
@@ -145,7 +145,7 @@ export function choicesRows(ev: EventRow[], wishes: WishRow[]) {
   const base = (shown: EventRow) => {
     const w = shown.wishId ? wm.get(shown.wishId) : undefined;
     return {
-      session: shown.sessionId, participant: shown.participantCode, theme: shown.theme, provider: shown.payload.used_provider ?? shown.provider,
+      session: shown.sessionId, participant: shown.participantCode, provider: shown.payload.used_provider ?? shown.provider,
       wish: w?.text ?? "", focus: w?.focus?.join("|") ?? "", domain: w?.domains?.join("|") ?? "", archetype: w?.archetype ?? "",
       step: shown.step, shown_ids: (shown.payload.move_ids as string[] | undefined)?.join("|") ?? "", reroll_index: shown.payload.reroll_index ?? 0,
     };
@@ -174,7 +174,7 @@ export function feedbackRows(ev: EventRow[], wishes: WishRow[]) {
     const one = (n: string) => same.find((e) => e.name === n)?.payload;
     const w = done.wishId ? wm.get(done.wishId) : undefined;
     rows.push({
-      session: done.sessionId, participant: done.participantCode, theme: done.theme, provider: done.provider,
+      session: done.sessionId, participant: done.participantCode, provider: done.provider,
       wish: w?.text ?? "", why: w?.why ?? "", archetype: w?.archetype ?? "", path: (done.payload.move_ids as string[] | undefined)?.join("|") ?? "",
       rating: one("path_rated")?.rating ?? "", would_do_this_week: one("would_do_this_week")?.answer ?? "",
       paid_willingness: same.filter((e) => e.name === "paid_willingness").map((e) => `${e.payload.move_id}:${e.payload.answer}`).join("|"),
@@ -187,6 +187,6 @@ export function feedbackRows(ev: EventRow[], wishes: WishRow[]) {
 export function eventsRows(ev: EventRow[]) {
   return ev.map((e) => ({
     id: e.id, created_at: new Date(e.createdAt).toISOString(), session_id: e.sessionId, wish_id: e.wishId, participant_code: e.participantCode,
-    theme: e.theme, provider: e.provider, name: e.name, step: e.step, payload: JSON.stringify(e.payload),
+    provider: e.provider, name: e.name, step: e.step, payload: JSON.stringify(e.payload),
   }));
 }

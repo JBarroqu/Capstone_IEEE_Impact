@@ -4,7 +4,7 @@ import { getDb, schema } from "@/lib/db/client";
 import { config } from "@/lib/config";
 
 const body = z.object({
-  sessionId: z.string().uuid(), participantCode: z.string().max(64), theme: z.string().max(32), consented: z.boolean(),
+  sessionId: z.string().uuid(), participantCode: z.string().max(64), consented: z.boolean(),
 });
 
 /** Called only after consent. Creates the session row. */
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success || !p.data.consented) return NextResponse.json({ ok: false }, { status: 400 });
   await getDb().insert(schema.sessions).values({
-    id: p.data.sessionId, participantCode: p.data.participantCode, theme: p.data.theme, provider: config.provider,
+    id: p.data.sessionId, participantCode: p.data.participantCode, provider: config.provider,
     appVersion: config.appVersion, consented: true,
   }).onConflictDoNothing();
   return NextResponse.json({ ok: true, provider: config.provider });

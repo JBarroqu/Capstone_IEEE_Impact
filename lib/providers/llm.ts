@@ -1,5 +1,5 @@
 import type { Move, OptionsRequest, OptionsResult, MoveProvider } from "../types";
-import { buildPrompt, PROMPT_VERSION } from "../prompts/moves.v1";
+import { buildPrompt, PROMPT_VERSION } from "../prompts/moves.v2";
 import { parseModelJson, repairMoves, ValidationError } from "./validate";
 import { staticGetOptions, normalizeTitle, pickThree } from "../engine/select";
 import { catalog, catalogById } from "../engine/catalog";
@@ -22,9 +22,10 @@ export function makeLlmProvider(
     async getOptions(req: OptionsRequest): Promise<OptionsResult> {
       const t0 = Date.now();
       const base = { requestedProvider: name, model, promptVersion: PROMPT_VERSION };
+      let lastError: string | undefined;
       const fallback = (reason: NonNullable<OptionsResult["meta"]["fallbackReason"]>): OptionsResult => {
         const r = staticGetOptions(req);
-        return { moves: r.moves, meta: { ...r.meta, ...base, usedProvider: "static", fallbackReason: reason, latencyMs: Date.now() - t0 } };
+        return { moves: r.moves, meta: { ...r.meta, ...base, usedProvider: "static", fallbackReason: reason, errorDetail: lastError, latencyMs: Date.now() - t0 } };
       };
 
       const deadline = t0 + timeoutMs;
@@ -45,6 +46,7 @@ export function makeLlmProvider(
           const raws = parseModelJson(text);
           return assemble(req, raws, { ...base, latencyMs: Date.now() - t0 }, attempt > 0);
         } catch (e) {
+          lastError = String((e as Error)?.message ?? e).slice(0, 300);
           if (e instanceof ValidationError) { hint = e.message; if (attempt === 1) return fallback("invalid_json"); continue; }
           if (e instanceof QueueTimeout) return fallback("rate_limited");
           if (e instanceof RateLimited) return fallback("rate_limited");

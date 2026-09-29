@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { config } from "../config";
-import { movesJsonSchema } from "../prompts/moves.v1";
+import { movesJsonSchema } from "../prompts/moves.v2";
 import { makeLlmProvider, RateLimited, type Generate } from "./llm";
 import { RateQueue } from "./queue";
 

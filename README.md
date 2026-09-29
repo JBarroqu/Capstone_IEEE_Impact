@@ -16,10 +16,16 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 Run `npm run llm:check` to send one sample wish to the configured provider and print the 3 moves, latency, and validation result.
 
 ## Running a test session
-Give each participant a link like `http://localhost:3000/?p=P08` (theme override: `&theme=...`). Codes starting with `TEST` can be bulk-deleted from the admin moderator box.
+Give each participant a link like `http://localhost:3000/?p=P08`. Codes starting with `TEST` can be bulk-deleted from the admin moderator box.
 
 ## Exporting data
-`/admin` (password from `ADMIN_PASSWORD`) offers `events.csv`, `choices.csv`, `feedback.csv`, `moves.csv`; the same routes accept filters: `/api/admin/export/choices?theme=...&provider=...&from=YYYY-MM-DD&to=YYYY-MM-DD`.
+`/admin` (password from `ADMIN_PASSWORD`) offers `events.csv`, `choices.csv`, `feedback.csv`, `moves.csv`; the same routes accept filters: `/api/admin/export/choices?provider=...&from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
-## Status
-Done: data model, event API, static engine, Gemini/Ollama providers, analytics and CSV functions, API routes, tests. Pending: student flow and admin page UI (waiting on mockups).
+## Testing
+- `npm test`: unit tests (engine, mocked LLM providers, analytics, CSV). No live model calls.
+- `npm run llm:check`: one live call to the configured provider.
+- End-to-end: with the dev server running, `BASE_URL=http://localhost:3000 npx tsx scripts/e2e.ts [--phone] [--shots=dir]` drives a full student session in headless Chrome (uses `TEST` participant codes; delete them from the admin moderator box afterwards).
+
+## Notes
+- Gemini model names get retired quickly; if `llm:check` shows a 404, list available models and update `GEMINI_MODEL`. Big "flash" models can return 503 under load; the app then falls back to `static` silently, and `provider_fallback` events record it.
+- Prompt version is logged on every options event; bump `PROMPT_VERSION` in `lib/prompts/` on any edit.

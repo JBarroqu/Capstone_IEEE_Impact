@@ -53,7 +53,7 @@ Desktop/laptop-first (design at ~1280px wide, a centered content column of ~640�
    - One paragraph: what this is, that it's a prototype, that choices and feedback are logged anonymously for research, and that they shouldn't type personal details (names, contact info) into text fields.
    - When `MOVE_PROVIDER=gemini`, add one plain sentence: what they type (wish, why, prior attempts) is sent to Google's Gemini service to generate options, and may be reviewed by Google. Pull this text from config so I can edit it. When `ollama` or `static`, say instead that nothing leaves the test machine except the anonymous log.
    - Checkbox "I understand" + Continue. No consent → no logging and no continue.
-   - Reads `?p=` (participant code, e.g. `P07`) and `?theme=` from the URL and stores them on the session. If no participant code, generate `anon-xxxx`.
+   - Reads `?p=` (participant code, e.g. `P07`) from the URL and stores it on the session. If no participant code, generate `anon-xxxx`.
 
 2. **Wish intake**
    - Free-text field: "What do you want to make happen?"
@@ -194,7 +194,6 @@ One append-only table `events`:
 | session_id | uuid | one per browser session |
 | wish_id | uuid, nullable | one per wish within a session |
 | participant_code | text | from `?p=` or generated |
-| theme | text | active theme id |
 | app_version | text | from package.json |
 | provider | text | `static` / `ollama` / `gemini` (the provider actually used, after any fallback) |
 | name | text | event name |
@@ -211,56 +210,33 @@ Client batches events and posts to `POST /api/events`; flush on navigation and w
 
 ### Admin page `/admin`
 
-Password-gated. One page, plain tables, no charting library needed (a simple horizontal bar made of divs is fine). Filters at the top: date range, theme, participant code.
+Password-gated. One page, plain tables, no charting library needed (a simple horizontal bar made of divs is fine). Filters at the top: date range, provider, participant code.
 
 - **Funnel**: sessions → consented → wish submitted → move 1 locked → move 2 → move 3 → path rated.
 - **Move leaderboard**: per move — times shown, times picked, **pick rate** (picked ÷ shown), times rejected, median decision time, pick rate by display position. Sortable. Grouped by step and focus.
 - **Reject reasons**: counts per reason, per step.
 - **Classifier accuracy**: % of wishes where the student kept the guessed focus/domain.
 - **Feedback**: average path rating, "would do this week" split, paid willingness per paid move, options-useful split per step, and a list of open-text feedback with the wish it came from.
-- **Theme comparison**: the key numbers above side by side per theme.
-- **Provider comparison**: the same key numbers side by side per provider (static vs. ollama vs. gemini), plus median option latency, fallback rate, and "options useful" split. This is how I'll tell whether the LLM actually beats the hand-written catalog. Add a provider filter at the top alongside theme.
+- **Provider comparison**: the same key numbers side by side per provider (static vs. ollama vs. gemini), plus median option latency, fallback rate, and "options useful" split. This is how I'll tell whether the LLM actually beats the hand-written catalog.
 - **Generated moves** table (Section 4b).
 - **CSV exports** (download buttons):
   - `events.csv` — raw events, payload flattened to JSON string.
-  - `choices.csv` — one row per decision: session, participant, theme, wish text, focus, domain, archetype, step, shown ids (in order), chosen id, chosen position, decision ms, reroll index, reject reason.
+  - `choices.csv` — one row per decision: session, participant, wish text, focus, domain, archetype, step, shown ids (in order), chosen id, chosen position, decision ms, reroll index, reject reason.
   - `feedback.csv` — one row per completed path with all feedback fields.
   - `moves.csv` — the leaderboard as shown.
-- A "Moderator" box: generate a test link for a participant code and theme (`/?p=P08&theme=transit`), and a button to delete sessions marked as test data (sessions with participant code starting `TEST`).
+- A "Moderator" box: generate a test link for a participant code (`/?p=P08`), and a button to delete sessions marked as test data (sessions with participant code starting `TEST`).
 
 ---
 
 ## 7. Visual design
 
-> **UPDATE: Ignore the three themes below.** Waleed will supply actual mockups. Do not build themed UI until they arrive; pause at that point. Keep the theming mechanism (`data-theme`, `?theme=` logged on the session), and keep the accessibility and "not an AI product" rules.
+There is **one design and no themes**. Follow the mockups in `/design` (`Chapter-Intake.dc.html`, `Chapter-Pick.dc.html`): Figtree, blue header band, pill chips, 14px-radius cards, dark pill primary button. Extend the same language to the other student screens and to `/admin`. Desktop-first: full-width header band with a centered content column.
 
-The UI must look **hand-made and not like an AI product**. Hard rules:
+Keep these rules:
 
-- No gradients, glows, glassmorphism, sparkle/star icons, chat bubbles, typing animations, "AI" or "smart" wording, purple-on-dark, or emoji.
-- No Inter, Roboto, Arial, or system-ui as the visible font.
+- No gradients, glows, sparkle icons, chat bubbles, typing animations, "AI" or "smart" wording, or emoji.
 - Copy says "moves" and "options", never "suggestions generated for you".
 - Touch targets ≥ 44px, text contrast ≥ 4.5:1, real `<button>`/`<input>`/`<label>` elements, visible focus styles, works with keyboard.
-
-Implement theming with CSS variables on `<html data-theme="…">` and a `themes.ts` token file. Ship all three themes below; the default is set by `DEFAULT_THEME` env var, and `?theme=` overrides it per session (and is logged, so I can compare themes in testing). Themes may differ in fonts, colors, borders, radii, shadows, and small decorative treatments, but share the same layout and components.
-
-### Theme A — `index-card` (analog study desk)
-
-- Background: kraft paper `#CDB58F`. Cards: white `#FFFFFF` with faint blue ruled lines `#BFD4EC` every 32px and a red margin line `#D9534A` on the intake card. Manila tag for the wish `#F3E3B5` with border `#B89B5E`.
-- Ink `#22201C`, secondary ink `#3B3326`, meta `#5A5348`, pen blue `#1F4E8C`, highlighter `#FFF27A`.
-- Fonts: **Courier Prime** (headings, labels, buttons), **Karla** (body), **Caveat** (the student's typed wish only).
-- Cards sit at tiny rotations (−1° to 1°) with soft paper shadows. Selected card: square checkbox with a pen-blue check, highlighter swipe behind the title, a small rotated "PICKED" stamp. Primary button: solid ink, 4px radius. "None of these fit" is an underlined text button with a wavy red underline.
-
-### Theme B — `transit` (subway signage)
-
-- White `#FFFFFF` background, black `#111111` text, signal-yellow header band `#FFD100`, line green `#00985F`, secondary text `#4A4A4A`, dividers `#E1E1E1`. Extra line colors for starter chips: `#0072CE`, `#F28C00`, `#7A4FA3`.
-- Fonts: **Barlow Condensed** 700–800 uppercase for headings and buttons, **Barlow** for body.
-- Square corners everywhere. The progress indicator is a route line: WISH (black station) → STOP 1 → 2 → 3, current stop a thick green ring. Options render as a departure board: a bordered stack of rows, each with a green square code (1A, 1B, 1C), title, and "20 MIN · FREE". Selected row fills yellow. Paid is a small outlined "PAID" tag. Primary button is full-width black with condensed caps: "CONFIRM STOP 1B".
-
-### Theme C — `sticker` (zine / sticker board)
-
-- Background mint `#D9F2E6`, ink `#111111`, white cards, accents butter `#FFD84D`, lilac `#C3B3FF`, coral `#FF8A6B`, tomato `#FF5B3A`, green `#8FDDB5`.
-- Fonts: **Archivo Black** (headings, buttons), **Work Sans** (body). Headings in lowercase.
-- 2.5px black borders, hard offset shadows (`4px 4px 0 #111`, no blur), 14–16px radius, chips as rounded pills at small alternating rotations. Selected card turns butter with a black filled check and a slightly larger shadow. Tags are small bordered pills ("20 min", "free" on green, "paid" on coral). Primary button black with a tomato offset shadow.
 
 Load fonts with `next/font/google`.
 
@@ -269,12 +245,12 @@ Load fonts with `next/font/google`.
 ## 8. Done means
 
 - [ ] `npm run dev` works with a local or Neon `DATABASE_URL`; `npm run db:push` and `npm run seed` work.
-- [ ] A full session (consent → wish → classify → why → quiz → 3 moves with at least one reroll → summary feedback) completes on a laptop-sized viewport (and does not break at phone width) in all three themes.
+- [ ] A full session (consent → wish → classify → why → quiz → 3 moves with at least one reroll → summary feedback) completes on a laptop-sized viewport (and does not break at phone width).
 - [ ] Every event in Section 6 appears in the `events` table with the right payload.
-- [ ] `/admin` shows the funnel, move leaderboard with pick rates, reject reasons, feedback, and theme comparison, and all four CSV exports download and open cleanly in Excel/Sheets.
+- [ ] `/admin` shows the funnel, move leaderboard with pick rates, reject reasons, feedback, and provider comparison, and all four CSV exports download and open cleanly in Excel/Sheets.
 - [ ] Engine unit tests pass, including the mocked LLM provider tests.
 - [ ] `npm run llm:check` returns 3 valid moves from both Ollama and Gemini, and killing Ollama mid-session falls back to `static` without the student noticing.
 - [ ] Lighthouse accessibility ≥ 95 on the pick-a-move screen.
 - [ ] README explains setup, running a moderated test with participant links, and exporting data.
 
-Build in this order: data model + event logging → static engine + seed data + tests → Ollama and Gemini providers + validation + tests → student flow in Theme A → admin page + exports → Themes B and C → polish. Commit after each stage.
+Build in this order: data model + event logging → static engine + seed data + tests → Ollama and Gemini providers + validation + tests → student flow → admin page + exports → polish. Commit after each stage.

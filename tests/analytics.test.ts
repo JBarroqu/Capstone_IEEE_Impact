@@ -4,7 +4,7 @@ import { toCsv } from "@/lib/csv";
 
 let i = 0;
 const ev = (name: string, payload: Record<string, any> = {}, o: Partial<EventRow> = {}): EventRow => ({
-  createdAt: new Date(1_700_000_000_000 + i++ * 1000), sessionId: "s1", wishId: "w1", participantCode: "P01", theme: "a", provider: "gemini",
+  createdAt: new Date(1_700_000_000_000 + i++ * 1000), sessionId: "s1", wishId: "w1", participantCode: "P01", provider: "gemini",
   name, step: 1, payload, ...o,
 });
 const wishes: WishRow[] = [{ id: "w1", sessionId: "s1", text: "Learn DevOps", type: "open_ended", focus: ["learn"], domains: ["technical"], archetype: "builder", why: "job" }];

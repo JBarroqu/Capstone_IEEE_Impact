@@ -3,11 +3,11 @@ import { getDb, schema } from "./db/client";
 import { catalog } from "./engine/catalog";
 import type { EventRow, MoveMeta, WishRow } from "./analytics";
 
-export type Filters = { from?: string; to?: string; theme?: string; participant?: string; provider?: string };
+export type Filters = { from?: string; to?: string; participant?: string; provider?: string };
 
 export function parseFilters(sp: URLSearchParams | Record<string, string | undefined>): Filters {
   const g = (k: string) => (sp instanceof URLSearchParams ? sp.get(k) : sp[k]) || undefined;
-  return { from: g("from"), to: g("to"), theme: g("theme"), participant: g("participant"), provider: g("provider") };
+  return { from: g("from"), to: g("to"), participant: g("participant"), provider: g("provider") };
 }
 
 export async function loadData(f: Filters) {
@@ -16,7 +16,6 @@ export async function loadData(f: Filters) {
   const conds = [
     f.from && gte(e.createdAt, new Date(f.from)),
     f.to && lte(e.createdAt, new Date(new Date(f.to).getTime() + 86_400_000)),
-    f.theme && eq(e.theme, f.theme),
     f.participant && eq(e.participantCode, f.participant),
     f.provider && eq(e.provider, f.provider),
   ].filter(Boolean) as ReturnType<typeof eq>[];

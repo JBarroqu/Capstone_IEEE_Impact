@@ -73,6 +73,8 @@ export type OptionsMeta = {
   cacheHit: boolean;
   repaired: boolean;
   relaxed: boolean;
+  /** Raw error text for debugging (llm:check); not logged to events. */
+  errorDetail?: string;
   fallbackReason?: "timeout" | "invalid_json" | "rate_limited" | "error";
   sources: ("catalog" | "generated")[];
 };

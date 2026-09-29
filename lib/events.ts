@@ -14,7 +14,6 @@ export const eventSchema = z.object({
   sessionId: z.string().uuid(),
   wishId: z.string().uuid().nullish(),
   participantCode: z.string().max(64),
-  theme: z.string().max(32),
   step: z.number().int().min(1).max(5).nullish(),
   payload: z.record(z.string(), z.unknown()).default({}),
 });

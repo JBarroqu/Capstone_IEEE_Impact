@@ -21,7 +21,8 @@ async function main() {
   const valid = r.moves.length === 3 && r.moves.every((m) => rawMoveSchema.safeParse(m).success);
   const free = r.moves.filter((m) => m.cost === "free").length;
   console.log(`\nused=${r.meta.usedProvider} latency=${r.meta.latencyMs}ms repaired=${r.meta.repaired} fallback=${r.meta.fallbackReason ?? "none"}`);
-  console.log(`validation: ${valid && free >= 2 ? "PASS" : "FAIL"} (moves=${r.moves.length}, free=${free})`);
+  if (r.meta.errorDetail) console.log(`error: ${r.meta.errorDetail}`);
+  console.log(`validation: ${valid && free >= 2 && r.meta.usedProvider === config.provider ? "PASS" : "FAIL (or fell back to static)"} (moves=${r.moves.length}, free=${free})`);
   process.exit(valid && r.meta.usedProvider === config.provider ? 0 : 1);
 }
 main();
