@@ -1,0 +1,20 @@
+[
+  { "id": "newgrad-swe", "text": "Land a new-grad SWE offer", "chip": true },
+  { "id": "tech-interviews", "text": "Pass technical interviews", "chip": true },
+  { "id": "capstone-portfolio", "text": "Turn my capstone into a portfolio piece", "chip": true },
+  { "id": "grad-program", "text": "Get into a CS master's or PhD program", "chip": true },
+  { "id": "resume", "text": "An impressive resume", "chip": true },
+  { "id": "devops", "text": "Learn DevOps", "chip": true },
+  { "id": "healthcare", "text": "Connect in the healthcare industry", "chip": true },
+  { "id": "oss-pr", "text": "Ship my first open-source PR", "chip": true },
+  { "id": "swe-intern", "text": "A SWE internship" },
+  { "id": "faang", "text": "A FAANG offer" },
+  { "id": "gpa", "text": "A 4.0 GPA" },
+  { "id": "ml", "text": "Understand how ML really works" },
+  { "id": "leetcode", "text": "LeetCode fluency" },
+  { "id": "inference-engine", "text": "Build an inference engine" },
+  { "id": "saas", "text": "Start a B2B SaaS" },
+  { "id": "impact", "text": "Build something that helps people" },
+  { "id": "eng-manager", "text": "Become an engineering manager" },
+  { "id": "influence", "text": "Real influence online" }
+]
