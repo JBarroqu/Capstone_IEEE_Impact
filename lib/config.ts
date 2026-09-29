@@ -8,7 +8,11 @@ export const config = {
   geminiModel: env("GEMINI_MODEL", "gemini-3.1-flash-lite"),
   ollamaUrl: env("OLLAMA_URL", "http://localhost:11434"),
   ollamaModel: env("OLLAMA_MODEL", "llama3.1:8b"),
-  llmTimeoutMs: Number(env("LLM_TIMEOUT_MS", "8000")),
+  /** Per attempt. Long on purpose: we would rather wait than show non-LLM moves. */
+  llmTimeoutMs: Number(env("LLM_TIMEOUT_MS", "25000")),
+  llmAttempts: Number(env("LLM_ATTEMPTS", "3")),
+  /** "none" (default): if the LLM fails, show an error + retry. "static": silently substitute catalog moves. */
+  llmFallback: (env("LLM_FALLBACK", "none") === "static" ? "static" : "none") as "none" | "static",
   llmCache: env("LLM_CACHE", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
   adminPassword: env("ADMIN_PASSWORD"),

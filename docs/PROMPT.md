@@ -38,7 +38,7 @@ At every step the student is shown **options** and picks one. If none fit, they 
 - **Options come from an LLM, behind a swappable `MoveProvider` interface** (full spec in Section 4b). Three providers, selected by `MOVE_PROVIDER` env var:
   - `gemini`: Google Gemini API via the official `@google/genai` SDK (`GEMINI_API_KEY`, `GEMINI_MODEL`, a Flash-class model). **Expected primary provider and the default**, whether run locally or deployed.
   - `ollama`: a local model on my laptop via Ollama (`OLLAMA_URL`, default `http://localhost:11434`; `OLLAMA_MODEL`). Optional; feasible since tests run from my laptop, and useful for offline sessions or keeping data on-device.
-  - `static`: the deterministic rule-based engine from Section 4 over `data/moves.json`. Always built, used as the **fallback** when the LLM fails or times out, and selectable on its own as a control condition.
+  - `static`: the deterministic rule-based engine from Section 4 over `data/moves.json`. Always built, but **only used when explicitly selected** as a control condition. It is NOT a fallback: static moves are treated as a failure, so if the LLM fails the student sees a retry prompt (unless `LLM_FALLBACK=static` is set).
 - No auth for students. Admin page protected by a password from `ADMIN_PASSWORD` (httpOnly cookie after login).
 - Vitest for unit tests on the engine.
 - README with setup, env vars, how to seed, how to run a test session, how to export data.
@@ -144,10 +144,10 @@ The LLM writes options tailored to the student's exact wish, why, prior attempts
 
 **Validation and repair** (server-side, zod):
 
-1. Parse; on failure, retry once with the validation error appended. Still failing → fall back to `static` for this set.
-2. Enforce the free/paid rule in code, not just in the prompt: if the model returns 2+ paid, keep the best-scored paid one and backfill with catalog free moves.
+1. Parse; on failure, retry once with the validation error appended. Still failing → the request fails (student sees a retry prompt; `options_failed` is logged). **Do not substitute static moves** unless `LLM_FALLBACK=static`.
+2. Enforce the free/paid rule in code, not just in the prompt: if the model returns 2+ paid, drop the extras and, if that leaves fewer than 3 moves, ask the model again (no catalog backfill).
 3. Enforce length limits (title ≤ 60 chars, detail one sentence) by truncation, and reject any move whose title is a near-duplicate (normalized-text match) of something already shown at this step.
-4. Timeout (`LLM_TIMEOUT_MS`, default 12000). On timeout or network error → `static` fallback, and the student never sees an error.
+4. Timeout (`LLM_TIMEOUT_MS`, per attempt, default 25000) and up to `LLM_ATTEMPTS` (default 3) tries with backoff on timeout / 503 / 429. Never fall back to static moves silently.
 
 **Stable ids for analytics.** Store every generated move in a `generated_moves` table (`id`, `session_id`, `wish_id`, `step`, the full `Move` JSON, `provider`, `model`, `prompt_version`, `created_at`). Id = `gen-` + short hash of normalized title + step, so the same move generated twice shares an id and the leaderboard can aggregate it. Catalog moves keep their slugs. The leaderboard must show both kinds, with a `source` column (`catalog` / `generated`).
 
@@ -158,7 +158,7 @@ The LLM writes options tailored to the student's exact wish, why, prior attempts
 - Most tests run from my laptop (participants use my laptop, or reach it via the LAN URL with `next dev -H 0.0.0.0`). Default `MOVE_PROVIDER=gemini`; `ollama` is an optional local alternative. A Vercel deployment cannot reach Ollama on my laptop, so don't try.
 - Remote/unmoderated tests, if any: deploy to Vercel with `MOVE_PROVIDER=gemini`.
 - Suggested Ollama models: a 7–8B instruct model that supports JSON-schema output; include a `npm run llm:check` script that sends one sample wish to the configured provider and prints the 3 moves, latency, and whether validation passed. I'll use it to pick a model.
-- Note the Gemini free tier's per-minute rate limits: add a simple in-memory queue so a burst of testers doesn't get 429s (fall back to `static` if the queue wait exceeds the timeout).
+- Note the Gemini free tier's per-minute rate limits: add a simple in-memory queue so a burst of testers doesn't get 429s (wait in the queue; never substitute static moves).
 
 **Consistency.** LLM output varies, which makes comparisons across participants noisier. Mitigate: cache results keyed on (normalized wish, confirmed tags, archetype, step, excluded ids, prompt version) in Postgres, so identical inputs get identical options within a test run. `LLM_CACHE=false` disables it.
 
@@ -168,7 +168,7 @@ The LLM writes options tailored to the student's exact wish, why, prior attempts
 
 ## 5. Seed content
 
-Options are LLM-generated, so the catalog is deliberately small: it exists only as the `static` fallback/control, few-shot examples for the prompt, and stable-id analytics baseline. Write **`data/moves.json` with ~5 moves per focus (~30 total, plus the 3 worked paths below)**, spread across steps 1–3, realistic for **senior** ASU CS students: assume they already know how to code, have taken data structures/algorithms, and probably have a resume and a GitHub. Skip beginner moves ("learn what Git is") unless the wish is explicitly beginner-level. Lean on what seniors actually face: new-grad applications and referrals, technical interviews, the capstone project, grad school applications and recommendation letters, turning a class project into a portfolio piece, and first-job decisions. Keep titles concrete ("Message one alum who works in healthcare"), never vague ("Explore opportunities"). Don't invent specific ASU club names, people, or prices; use generic phrasing and put any price as `"[PRICE]"` in the detail.
+Options are LLM-generated, so the catalog is deliberately small: it exists only as the `static` control condition, few-shot examples for the prompt, and stable-id analytics baseline. Write **`data/moves.json` with ~5 moves per focus (~30 total, plus the 3 worked paths below)**, spread across steps 1–3, realistic for **senior** ASU CS students: assume they already know how to code, have taken data structures/algorithms, and probably have a resume and a GitHub. Skip beginner moves ("learn what Git is") unless the wish is explicitly beginner-level. Lean on what seniors actually face: new-grad applications and referrals, technical interviews, the capstone project, grad school applications and recommendation letters, turning a class project into a portfolio piece, and first-job decisions. Keep titles concrete ("Message one alum who works in healthcare"), never vague ("Explore opportunities"). Don't invent specific ASU club names, people, or prices; use generic phrasing and put any price as `"[PRICE]"` in the detail.
 
 Must include these worked paths from the proposal so testers see them:
 
@@ -195,7 +195,7 @@ One append-only table `events`:
 | wish_id | uuid, nullable | one per wish within a session |
 | participant_code | text | the name entered on the welcome screen |
 | app_version | text | from package.json |
-| provider | text | `static` / `ollama` / `gemini` (the provider actually used, after any fallback) |
+| provider | text | `static` / `ollama` / `gemini` (the provider that produced the options) |
 | name | text | event name |
 | step | int, nullable | move step when relevant |
 | payload | jsonb | event-specific data |
@@ -249,7 +249,7 @@ Load fonts with `next/font/google`.
 - [ ] Every event in Section 6 appears in the `events` table with the right payload.
 - [ ] `/admin` shows the funnel, move leaderboard with pick rates, reject reasons, feedback, and provider comparison, and all four CSV exports download and open cleanly in Excel/Sheets.
 - [ ] Engine unit tests pass, including the mocked LLM provider tests.
-- [ ] `npm run llm:check` returns 3 valid moves from both Ollama and Gemini, and killing Ollama mid-session falls back to `static` without the student noticing.
+- [ ] `npm run llm:check` returns 3 valid moves from both Ollama and Gemini, and killing Ollama mid-session shows the student a retry prompt (never static moves).
 - [ ] Lighthouse accessibility ≥ 95 on the pick-a-move screen.
 - [ ] README explains setup, running a moderated test with participant links, and exporting data.
 

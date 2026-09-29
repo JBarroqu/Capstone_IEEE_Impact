@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BrandRow, Chip, Field, PrimaryButton, Tag, TextButton, WishTile, textareaCls } from "./ui";
 import { track } from "@/lib/track";
-import type { OptionsResponse } from "@/lib/client-api";
+import { OptionsError, type OptionsResponse } from "@/lib/client-api";
 import type { Move, OptionsMeta, WishContext } from "@/lib/types";
 
 export type LoadOptions = (a: { step: number; chosen: Move[]; excludeIds: string[]; rejectReason?: { chip?: string; text?: string }; rejectedMoves?: Move[]; rerollIndex: number }) => Promise<OptionsResponse>;
@@ -36,10 +36,12 @@ export function Pick({ step, totalSteps, wishText, chosen, load, onLocked, onSki
   const excluded = useRef<string[]>([]);
   const allShown = useRef<Move[]>([]);
   const started = useRef(false);
+  const lastReject = useRef<{ reason?: { chip?: string; text?: string }; moves?: Move[] } | null>(null);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   async function fetchSet(reroll: number, reject?: { chip?: string; text?: string }, rejectedMoves?: Move[]) {
+    lastReject.current = reject || rejectedMoves ? { reason: reject, moves: rejectedMoves } : null;
     setMoves(null); setError(false); setSelected(null);
     try {
       const res = await load({ step, chosen, excludeIds: excluded.current, rejectReason: reject, rejectedMoves, rerollIndex: reroll });
@@ -56,8 +58,10 @@ export function Pick({ step, totalSteps, wishText, chosen, load, onLocked, onSki
       }, step);
       if (meta.fallbackReason) track("provider_fallback", { requested_provider: meta.requestedProvider, reason: meta.fallbackReason }, step);
       if (meta.relaxed) track("options_relaxed", { reroll_index: reroll }, step);
-    } catch {
-      if (mounted.current) setError(true);
+    } catch (e) {
+      if (!mounted.current) return;
+      track("options_failed", { reason: e instanceof OptionsError ? e.reason : "network", reroll_index: reroll }, step);
+      setError(true);
     }
   }
 
@@ -104,8 +108,8 @@ export function Pick({ step, totalSteps, wishText, chosen, load, onLocked, onSki
 
       {error ? (
         <div className="flex flex-col items-start gap-2 rounded-[14px] border border-line p-4">
-          <p className="m-0 text-[15px]">Couldn&apos;t load options.</p>
-          <TextButton onClick={() => fetchSet(rerollIndex)}>Try again</TextButton>
+          <p className="m-0 text-[15px]">We couldn&apos;t load your options this time. Nothing you entered was lost.</p>
+          <TextButton onClick={() => fetchSet(rerollIndex, lastReject.current?.reason, lastReject.current?.moves)}>Try again</TextButton>
         </div>
       ) : moves === null ? (
         <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading options">

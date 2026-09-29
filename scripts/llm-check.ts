@@ -16,7 +16,13 @@ const req: OptionsRequest = {
 
 async function main() {
   console.log(`provider=${config.provider} model=${config.provider === "ollama" ? config.ollamaModel : config.geminiModel}`);
-  const r = await getProvider().getOptions(req);
+  let r;
+  try {
+    r = await getProvider().getOptions(req);
+  } catch (e) {
+    console.log(`\nFAILED: ${(e as Error).message}`);
+    process.exit(1);
+  }
   r.moves.forEach((m, i) => console.log(`${i + 1}. [${m.cost}, ${m.minutes}m, ${m.format}] ${m.title}\n   ${m.detail}`));
   const valid = r.moves.length === 3 && r.moves.every((m) => rawMoveSchema.safeParse(m).success);
   const free = r.moves.filter((m) => m.cost === "free").length;

@@ -13,7 +13,12 @@ export function saveWish(body: Record<string, unknown>) {
 
 export type OptionsResponse = { moves: Move[]; meta: OptionsMeta };
 export type OptionsBody = Omit<OptionsRequest, "step"> & { step: number };
+export class OptionsError extends Error {
+  constructor(public reason: string) { super(`options failed: ${reason}`); }
+}
 export async function fetchOptions(body: unknown): Promise<OptionsResponse> {
-  const r = await postJson("/api/options", body);
+  const res = await fetch("/api/options", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const r = await res.json().catch(() => ({}));
+  if (!res.ok || !r.moves) throw new OptionsError(r.reason ?? "network");
   return { moves: r.moves, meta: r.meta };
 }

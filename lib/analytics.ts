@@ -114,6 +114,7 @@ export function keyNumbers(ev: EventRow[]) {
   const fb = feedback(ev, []);
   const shown = ev.filter((e) => e.name === "options_shown");
   const fallbacks = ev.filter((e) => e.name === "provider_fallback").length;
+  const failed = ev.filter((e) => e.name === "options_failed").length;
   const lat = shown.map((e) => Number(e.payload.latency_ms)).filter((n) => !isNaN(n));
   const locked = ev.filter((e) => e.name === "move_locked").length;
   const rejected = ev.filter((e) => e.name === "options_rejected").length;
@@ -122,7 +123,7 @@ export function keyNumbers(ev: EventRow[]) {
     completionRate: f[0].n ? Math.round((f[6].n / f[0].n) * 100) : null,
     avgRating: fb.avgRating, wouldDoThisWeek: fb.wouldDoThisWeek,
     optionsUseful: count(ev.filter((e) => e.name === "options_feedback").map((e) => String(e.payload.answer))),
-    medianLatencyMs: median(lat), fallbackRate: shown.length ? Math.round((fallbacks / shown.length) * 100) : null,
+    medianLatencyMs: median(lat), failedRate: shown.length + failed ? Math.round((failed / (shown.length + failed)) * 100) : null, fallbackRate: shown.length ? Math.round((fallbacks / shown.length) * 100) : null,
     rerollRate: locked + rejected ? Math.round((rejected / (locked + rejected)) * 100) : null,
     classifierAccuracyPct: classifierAccuracy(ev).pct,
   };

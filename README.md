@@ -11,7 +11,9 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 ## Providers (`MOVE_PROVIDER`)
 - `gemini` (default): needs `GEMINI_API_KEY`; rate-limited in-memory (`GEMINI_RPM`, default 9/min).
 - `ollama`: local model; set `OLLAMA_MODEL` to a 7-8B instruct model that supports JSON-schema output. Not reachable from Vercel.
-- `static`: rule-based catalog only; use as the control condition. It is also the fallback when an LLM call fails or times out.
+- `static`: rule-based catalog only; use it only as a deliberate control condition.
+
+If the LLM fails (timeouts, 503s, rate limits), the app retries up to `LLM_ATTEMPTS` times (each with its own `LLM_TIMEOUT_MS`), then shows the student a "Try again" message and logs `options_failed`. It never quietly substitutes static moves unless you set `LLM_FALLBACK=static`.
 
 Run `npm run llm:check` to send one sample wish to the configured provider and print the 3 moves, latency, and validation result.
 
@@ -27,5 +29,5 @@ Each new session asks for a name on the first screen; that name is the participa
 - End-to-end: with the dev server running, `BASE_URL=http://localhost:3000 npx tsx scripts/e2e.ts [--phone] [--shots=dir]` drives a full student session in headless Chrome (uses `TEST` participant codes; delete them from the admin moderator box afterwards).
 
 ## Notes
-- Gemini model names get retired quickly; if `llm:check` shows a 404, list available models and update `GEMINI_MODEL`. Big "flash" models can return 503 under load; the app then falls back to `static` silently, and `provider_fallback` events record it.
+- Gemini model names get retired quickly; if `llm:check` shows a 404, list available models and update `GEMINI_MODEL`. Big "flash" models can return 503 under load; the app retries with backoff, and `options_failed` events record any request that still fails.
 - Prompt version is logged on every options event; bump `PROMPT_VERSION` in `lib/prompts/` on any edit.

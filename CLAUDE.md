@@ -4,6 +4,7 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 
 ## Rules
 - **No `Co-Authored-By` / "Generated with Claude Code" lines** in commits or PRs. Plain messages. Commit after each stage. Never push without being asked (remote: waleedalfar/iihow).
+- **Static moves are a failure, not a fallback**: the point is LLM-generated moves. Never silently serve catalog moves when the LLM fails; show a retry and log `options_failed`. `static` is only a deliberate control provider.
 - **Design**: follow `design/*.dc.html` mockups (Figtree, blue band header, pill chips). Only one visual design; there are no themes. Admin page reuses the same design.
 - Content is pitched at senior ASU CS majors. No emoji, no "AI"/"smart" wording, say "moves"/"options".
 
@@ -13,7 +14,7 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 ## Layout
 - `data/` moves.json (catalog, generated from a compact script, edit JSON directly), wishes.json, keywords.json
 - `lib/engine/` classify + static selector (deterministic; ≥2 free, ≤1 paid; relaxes domain → focus → step)
-- `lib/providers/` `getOptions` (index.ts: provider + Postgres cache + generated_moves persistence) → `llm.ts` (retry once, repair, timeout, static fallback) → `gemini.ts` / `ollama.ts`; prompt in `lib/prompts/moves.v2.ts` (bump `PROMPT_VERSION` on any edit)
+- `lib/providers/` `getOptions` (index.ts: provider + Postgres cache + generated_moves persistence) → `llm.ts` (up to LLM_ATTEMPTS tries, per-attempt timeout, validation retries; throws `LlmUnavailable`, NO static substitution unless LLM_FALLBACK=static) → `gemini.ts` / `ollama.ts`; prompt in `lib/prompts/moves.v2.ts` (bump `PROMPT_VERSION` on any edit)
 - `lib/analytics.ts` pure stat/CSV-row functions over event rows; `lib/admin-data.ts` loads from DB; API under `app/api/`
 - `lib/track.ts` client event batching (needs `setConsent(true)` first; flushes with sendBeacon on pagehide)
 

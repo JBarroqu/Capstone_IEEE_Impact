@@ -6,14 +6,21 @@ import { staticGetOptions, normalizeTitle } from "../engine/select";
 import type { Move, MoveProvider, OptionsRequest, OptionsResult } from "../types";
 import { ollamaProvider } from "./ollama";
 import { geminiProvider } from "./gemini";
+import { LlmUnavailable } from "./llm";
 
 export const staticProvider: MoveProvider = {
   name: "static",
   async getOptions(req) { return staticGetOptions(req); },
 };
 
+/** A misconfigured provider fails loudly; it never quietly serves static moves. */
+const brokenProvider = (name: "gemini" | "ollama", why: string): MoveProvider => ({
+  name,
+  async getOptions() { throw new LlmUnavailable("error", why); },
+});
+
 export function getProvider(name = config.provider): MoveProvider {
-  if (name === "gemini") return config.geminiKey ? geminiProvider() : staticProvider;
+  if (name === "gemini") return config.geminiKey ? geminiProvider() : brokenProvider("gemini", "GEMINI_API_KEY is not set");
   if (name === "ollama") return ollamaProvider();
   return staticProvider;
 }
@@ -59,7 +66,7 @@ export function cacheKey(req: OptionsRequest, provider: string) {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
 }
 
-/** Entry point used by the API: provider + cache + persistence. Never throws. */
+/** Entry point used by the API: provider + cache + persistence. Throws LlmUnavailable when the LLM fails. */
 export async function getOptions(
   req: OptionsRequest,
   opts: { provider?: MoveProvider; store?: Store; cache?: boolean } = {},
@@ -86,13 +93,8 @@ export async function getOptions(
     } catch { /* cache is best-effort */ }
   }
 
-  let result: OptionsResult;
-  try {
-    result = await provider.getOptions(req);
-  } catch {
-    const r = staticGetOptions(req);
-    result = { moves: r.moves, meta: { ...r.meta, requestedProvider: provider.name, fallbackReason: "error" } };
-  }
+  // Throws LlmUnavailable if the LLM cannot produce options (unless LLM_FALLBACK=static, handled inside the provider).
+  const result: OptionsResult = await provider.getOptions(req);
   if (result.meta.usedProvider !== "static") {
     if (useCache) store.cacheSet(key, result.moves, result.meta.usedProvider, result.meta.model).catch(() => {});
     store.persistGenerated(req, result.moves, result.meta).catch(() => {});

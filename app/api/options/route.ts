@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOptions } from "@/lib/providers";
+import { LlmUnavailable } from "@/lib/providers/llm";
 import { ARCHETYPES, DOMAINS, FOCUSES, FORMATS } from "@/lib/types";
 
 const move = z.object({
@@ -27,6 +28,12 @@ const body = z.object({
 export async function POST(req: Request) {
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
-  const result = await getOptions(p.data as never);
-  return NextResponse.json({ ok: true, ...result });
+  try {
+    const result = await getOptions(p.data as never);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (e) {
+    const reason = e instanceof LlmUnavailable ? e.reason : "error";
+    console.error("options failed:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ ok: false, reason }, { status: 503 });
+  }
 }

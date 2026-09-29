@@ -1,6 +1,6 @@
 import { config } from "../config";
 import { movesJsonSchema } from "../prompts/moves.v2";
-import { makeLlmProvider, type Generate } from "./llm";
+import { llmOpts, makeLlmProvider, type Generate } from "./llm";
 
 export function ollamaProvider() {
   const generate: Generate = async ({ system, user }, signal) => {
@@ -20,5 +20,5 @@ export function ollamaProvider() {
     const json = (await res.json()) as { message?: { content?: string } };
     return json.message?.content ?? "";
   };
-  return makeLlmProvider("ollama", config.ollamaModel, generate, config.llmTimeoutMs);
+  return makeLlmProvider("ollama", config.ollamaModel, generate, config.llmTimeoutMs, undefined, llmOpts);
 }

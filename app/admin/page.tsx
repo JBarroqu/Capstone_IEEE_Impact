@@ -105,15 +105,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
       <Section title="Provider comparison">
         {Object.keys(byProvider).length === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
           <Table>
-            <thead><tr><Th>Provider</Th><Th>Sessions</Th><Th>Rated</Th><Th>Avg rating</Th><Th>Would do this week</Th><Th>Options useful</Th><Th>Median latency ms</Th><Th>Fallback rate</Th><Th>Reroll rate</Th><Th>Classifier kept</Th></tr></thead>
+            <thead><tr><Th>Provider</Th><Th>Sessions</Th><Th>Rated</Th><Th>Avg rating</Th><Th>Would do this week</Th><Th>Options useful</Th><Th>Median latency ms</Th><Th>LLM failed</Th><Th>Static fallback</Th><Th>Reroll rate</Th><Th>Classifier kept</Th></tr></thead>
             <tbody>
               {Object.entries(byProvider).map(([k, v]) => (
-                <tr key={k}><Td><b>{k}</b></Td><Td right>{v.sessions}</Td><Td right>{v.completedRated}</Td><Td right>{dash(v.avgRating)}</Td><Td>{split(v.wouldDoThisWeek)}</Td><Td>{split(v.optionsUseful)}</Td><Td right>{dash(v.medianLatencyMs)}</Td><Td right>{v.fallbackRate == null ? "–" : `${v.fallbackRate}%`}</Td><Td right>{v.rerollRate == null ? "–" : `${v.rerollRate}%`}</Td><Td right>{v.classifierAccuracyPct == null ? "–" : `${v.classifierAccuracyPct}%`}</Td></tr>
+                <tr key={k}><Td><b>{k}</b></Td><Td right>{v.sessions}</Td><Td right>{v.completedRated}</Td><Td right>{dash(v.avgRating)}</Td><Td>{split(v.wouldDoThisWeek)}</Td><Td>{split(v.optionsUseful)}</Td><Td right>{dash(v.medianLatencyMs)}</Td><Td right>{v.failedRate == null ? "–" : `${v.failedRate}%`}</Td><Td right>{v.fallbackRate == null ? "–" : `${v.fallbackRate}%`}</Td><Td right>{v.rerollRate == null ? "–" : `${v.rerollRate}%`}</Td><Td right>{v.classifierAccuracyPct == null ? "–" : `${v.classifierAccuracyPct}%`}</Td></tr>
               ))}
             </tbody>
           </Table>
         )}
-        <p className="mt-2 text-[13px] text-muted">Rows come from each event&apos;s provider. Options events use the provider that actually answered, after any fallback.</p>
+        <p className="mt-2 text-[13px] text-muted">Rows come from each event&apos;s provider. LLM failed = option requests where the LLM never produced valid moves (student saw a retry prompt). Static fallback only happens if LLM_FALLBACK=static.</p>
       </Section>
 
       <Section title="Move leaderboard">
