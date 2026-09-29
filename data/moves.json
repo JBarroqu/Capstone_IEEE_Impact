@@ -63,7 +63,7 @@
   },
   {
     "id": "resume-surface-gap",
-    "title": "Write down the gap your resume shows (strong projects, no internship)",
+    "title": "Write down the gap your resume shows to recruiters",
     "detail": "List what recruiters will read between the lines, then pick the one gap that is cheapest to close before applications open.",
     "step": 2,
     "focus": [
@@ -464,7 +464,7 @@
   },
   {
     "id": "learn-read-paper",
-    "title": "Read one seminal paper on your topic and summarize it in five bullets",
+    "title": "Read one seminal paper and summarize it in five bullets",
     "detail": "Pick a highly cited paper, read it in one sitting, and write five bullets: problem, idea, result, limit, what you'd try.",
     "step": 1,
     "focus": [
@@ -530,7 +530,7 @@
   },
   {
     "id": "learn-lecture-series",
-    "title": "Watch the first lecture of a top university course on the topic",
+    "title": "Watch the first lecture of a top university course on it",
     "detail": "Pick a course lecture on the topic at 1.5x speed, then write the three questions it leaves you with.",
     "step": 1,
     "focus": [
@@ -550,7 +550,7 @@
   },
   {
     "id": "learn-project-from-course",
-    "title": "Turn your toughest course project into something you can demo",
+    "title": "Turn your best course project into a demo-able piece",
     "detail": "Choose the class project you're proudest of, add a README, a demo video, and a hosted link.",
     "step": 3,
     "focus": [
@@ -675,7 +675,7 @@
   },
   {
     "id": "goal-grad-recs",
-    "title": "Ask two professors for recommendation letters with a one-page brief",
+    "title": "Ask two professors for letters with a one-page brief",
     "detail": "Send each a brief listing your work with them, your target programs, and deadlines, at least four weeks ahead.",
     "step": 3,
     "focus": [
@@ -843,7 +843,7 @@
   },
   {
     "id": "advance-oss-pr",
-    "title": "Ship a PR that fixes one good-first-issue in a repo you already use",
+    "title": "Ship a PR fixing one good-first-issue in a repo you use",
     "detail": "Find an issue tagged good first issue in a tool you use, reproduce it, and open a PR with a test.",
     "step": 3,
     "focus": [
@@ -1091,7 +1091,7 @@
   },
   {
     "id": "venture-impact-scan",
-    "title": "Find three local organizations with a problem software could fix",
+    "title": "Find three local groups with a problem software could fix",
     "detail": "Email or visit three nonprofits or campus groups and ask what they do manually every week.",
     "step": 1,
     "focus": [

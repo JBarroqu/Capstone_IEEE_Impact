@@ -232,6 +232,8 @@ Password-gated. One page, plain tables, no charting library needed (a simple hor
 
 ## 7. Visual design
 
+> **UPDATE: Ignore the three themes below.** Waleed will supply actual mockups. Do not build themed UI until they arrive; pause at that point. Keep the theming mechanism (`data-theme`, `?theme=` logged on the session), and keep the accessibility and "not an AI product" rules.
+
 The UI must look **hand-made and not like an AI product**. Hard rules:
 
 - No gradients, glows, glassmorphism, sparkle/star icons, chat bubbles, typing animations, "AI" or "smart" wording, purple-on-dark, or emoji.
