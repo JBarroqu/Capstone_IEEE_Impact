@@ -8,7 +8,7 @@ export const config = {
   geminiModel: env("GEMINI_MODEL", "gemini-3.1-flash-lite"),
   ollamaUrl: env("OLLAMA_URL", "http://localhost:11434"),
   ollamaModel: env("OLLAMA_MODEL", "llama3.1:8b"),
-  llmTimeoutMs: Number(env("LLM_TIMEOUT_MS", "12000")),
+  llmTimeoutMs: Number(env("LLM_TIMEOUT_MS", "8000")),
   llmCache: env("LLM_CACHE", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
   adminPassword: env("ADMIN_PASSWORD"),

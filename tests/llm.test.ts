@@ -64,6 +64,20 @@ describe("LLM provider", () => {
     expect(r.meta.usedProvider).toBe("static");
     expect(r.meta.fallbackReason).toBe("timeout");
   });
+  it("first attempt hangs, retry succeeds → still uses the LLM", async () => {
+    let n = 0;
+    const p = makeLlmProvider("gemini", "m", (_, signal) => n++ === 0
+      ? new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("abort"), { name: "AbortError" }))))
+      : Promise.resolve(json(mv("Retry one"), mv("Retry two"), mv("Retry three"))), 50);
+    const r = await p.getOptions(req);
+    expect(r.meta.usedProvider).toBe("gemini");
+    expect(n).toBe(2);
+  });
+  it("transient 503 is retried once, then succeeds", async () => {
+    let n = 0;
+    const r = await provider(async () => { if (n++ === 0) throw new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'); return json(mv("Ok one"), mv("Ok two"), mv("Ok three")); }).getOptions(req);
+    expect(r.meta.usedProvider).toBe("gemini");
+  });
   it("rate limit → static fallback", async () => {
     const r = await provider(async () => { throw new RateLimited("429"); }).getOptions(req);
     expect(r.meta.fallbackReason).toBe("rate_limited");

@@ -28,15 +28,14 @@ export function makeLlmProvider(
         return { moves: r.moves, meta: { ...r.meta, ...base, usedProvider: "static", fallbackReason: reason, errorDetail: lastError, latencyMs: Date.now() - t0 } };
       };
 
-      const deadline = t0 + timeoutMs;
+      // Each attempt gets its own timeout: a hung request usually succeeds on a fresh one. Two attempts max.
       let hint: string | undefined;
+      let lastReason: NonNullable<OptionsResult["meta"]["fallbackReason"]> = "error";
       for (let attempt = 0; attempt < 2; attempt++) {
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) return fallback("timeout");
         try {
-          await before?.(remaining);
+          await before?.(timeoutMs);
           const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), Math.max(1, deadline - Date.now()));
+          const timer = setTimeout(() => ctrl.abort(), timeoutMs);
           let text: string;
           try {
             text = await generate(buildPrompt(req, hint), ctrl.signal);
@@ -47,14 +46,14 @@ export function makeLlmProvider(
           return assemble(req, raws, { ...base, latencyMs: Date.now() - t0 }, attempt > 0);
         } catch (e) {
           lastError = String((e as Error)?.message ?? e).slice(0, 300);
-          if (e instanceof ValidationError) { hint = e.message; if (attempt === 1) return fallback("invalid_json"); continue; }
-          if (e instanceof QueueTimeout) return fallback("rate_limited");
-          if (e instanceof RateLimited) return fallback("rate_limited");
-          if ((e as Error)?.name === "AbortError" || e instanceof Timeout) return fallback("timeout");
+          if (e instanceof QueueTimeout || e instanceof RateLimited) return fallback("rate_limited");
+          if (e instanceof ValidationError) { hint = e.message; lastReason = "invalid_json"; continue; }
+          if ((e as Error)?.name === "AbortError" || e instanceof Timeout) { lastReason = "timeout"; continue; }
+          if (/503|UNAVAILABLE|ECONNRESET|fetch failed/i.test(lastError)) { lastReason = "error"; continue; }
           return fallback("error");
         }
       }
-      return fallback("invalid_json");
+      return fallback(lastReason);
     },
   };
 }
