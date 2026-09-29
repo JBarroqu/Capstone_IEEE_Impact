@@ -4,7 +4,7 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 
 ## Setup
 1. `npm install`
-2. Copy `.env.example` to `.env`; set `DATABASE_URL` (Neon or Supabase free tier), `ADMIN_PASSWORD`, and `GEMINI_API_KEY`.
+2. Copy `.env.example` to `.env`; set `DATABASE_URL` (local Postgres: `createdb -h 127.0.0.1 wish_engine`, then `postgres://<your-mac-username>@127.0.0.1:5432/wish_engine`; Neon/Supabase also work if you ever deploy), `ADMIN_PASSWORD`, and `GEMINI_API_KEY`.
 3. `npm run db:push` to create tables, `npm run seed` to validate `data/*.json`.
 4. `npm run dev` (or `npm run dev:lan` so other devices on your Wi-Fi can reach it).
 
