@@ -6,13 +6,14 @@ import { Summary, type FeedbackAnswers } from "./Summary";
 import { flush, setConsent, setTrackContext, track } from "@/lib/track";
 import { fetchOptions, postJson, saveWish } from "@/lib/client-api";
 import { assignArchetype } from "@/lib/archetypes";
+import { uuid } from "@/lib/uuid";
 import type { Archetype, Domain, Focus, Move, PriorAttempts, WishContext, WishType } from "@/lib/types";
 
 type Screen = "welcome" | "intake" | "classify" | "why" | "quiz" | "pick" | "more" | "summary" | "thanks";
 type Wish = { id: string; text: string; type: WishType; focus: Focus[]; domains: Domain[]; why?: string; prior: PriorAttempts };
 type Session = { sessionId: string; participantCode: string };
 
-const blankWish = (): Wish => ({ id: crypto.randomUUID(), text: "", type: "open_ended", focus: [], domains: [], prior: { chips: [] } });
+const blankWish = (): Wish => ({ id: uuid(), text: "", type: "open_ended", focus: [], domains: [], prior: { chips: [] } });
 const MAX_STEPS = 5;
 
 export default function Flow({ provider, consentCopy }: { provider: string; consentCopy: { intro: string; gemini: string; local: string } }) {
@@ -64,7 +65,7 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
   }, [session]);
 
   const begin = async (name: string) => {
-    const s: Session = { sessionId: crypto.randomUUID(), participantCode: name.slice(0, 64) };
+    const s: Session = { sessionId: uuid(), participantCode: name.slice(0, 64) };
     setSession(s);
     setTrackContext({ ...s, wishId: wish.id });
     setConsent(true);

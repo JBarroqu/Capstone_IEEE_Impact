@@ -26,3 +26,4 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - `/api/wish` is an upsert on purpose: client updates for one wish arrive out of order.
 - Gemini models get retired often; `gemini-3.1-flash-lite` was the reliable one on 2026-09-28 (bigger flash models returned 503).
 - Database: local Postgres 15 (brew service), db `wish_engine`; `DATABASE_URL` in `.env`. Tests never need it; e2e and the app do.
+- `crypto.randomUUID` is undefined on plain-http LAN URLs (only HTTPS/localhost); always use `uuid()` from `lib/uuid.ts` in client code. Same for `navigator.clipboard`.
