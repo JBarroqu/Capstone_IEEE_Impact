@@ -16,6 +16,8 @@ const blankWish = (): Wish => ({ id: crypto.randomUUID(), text: "", type: "open_
 const MAX_STEPS = 5;
 
 export default function Flow({ provider, consentCopy }: { provider: string; consentCopy: { intro: string; gemini: string; local: string } }) {
+  // ?p=NAME (optional) prefills the name box; participants can still edit it.
+  const [initialName] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("p")?.trim().slice(0, 60) ?? ""));
   const [screen, setScreen] = useState<Screen>("welcome");
   const [session, setSession] = useState<Session | null>(null);
   const [wish, setWish] = useState<Wish>(blankWish);
@@ -61,9 +63,8 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
     return () => window.removeEventListener("pagehide", h);
   }, [session]);
 
-  const begin = async () => {
-    const q = new URLSearchParams(window.location.search);
-    const s: Session = { sessionId: crypto.randomUUID(), participantCode: q.get("p")?.trim().slice(0, 64) || `anon-${Math.random().toString(36).slice(2, 6)}` };
+  const begin = async (name: string) => {
+    const s: Session = { sessionId: crypto.randomUUID(), participantCode: name.slice(0, 64) };
     setSession(s);
     setTrackContext({ ...s, wishId: wish.id });
     setConsent(true);
@@ -108,7 +109,7 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
 
   return (
     <main>
-      {screen === "welcome" && <Welcome provider={provider} copy={consentCopy} onContinue={begin} />}
+      {screen === "welcome" && <Welcome provider={provider} copy={consentCopy} initialName={initialName} onContinue={begin} />}
       {screen === "intake" && (
         <Intake initial={wish.text} onStartOver={() => startOverWish(true)} onSubmit={(text, fromChip) => {
           setWish((w) => ({ ...w, text }));

@@ -21,7 +21,8 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
   const shot = async (n: string) => shots && page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-${n}.png`, fullPage: true });
   const cards = () => page.locator("button[aria-pressed]").filter({ has: page.locator("span") });
 
-  await page.goto(`${base}/?p=TEST${phone ? "P" : "D"}${Date.now() % 1000}`);
+  await page.goto(`${base}/`);
+  await page.getByLabel("Your name").fill(`TEST ${phone ? "phone" : "desk"} ${Date.now() % 1000}`);
   page.on("response", (r) => r.status() >= 400 && errors.push(`${r.status()} ${r.url()}`));
   await page.getByLabel("I understand").check(); await shot("1-welcome");
   await page.getByRole("button", { name: "Continue" }).click();

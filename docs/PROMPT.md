@@ -53,7 +53,7 @@ Desktop/laptop-first (design at ~1280px wide, a centered content column of ~640â
    - One paragraph: what this is, that it's a prototype, that choices and feedback are logged anonymously for research, and that they shouldn't type personal details (names, contact info) into text fields.
    - When `MOVE_PROVIDER=gemini`, add one plain sentence: what they type (wish, why, prior attempts) is sent to Google's Gemini service to generate options, and may be reviewed by Google. Pull this text from config so I can edit it. When `ollama` or `static`, say instead that nothing leaves the test machine except the anonymous log.
    - Checkbox "I understand" + Continue. No consent â†’ no logging and no continue.
-   - Reads `?p=` (participant code, e.g. `P07`) from the URL and stores it on the session. If no participant code, generate `anon-xxxx`.
+   - Asks for the participant's name (required) and stores it as the participant code on the session; `?p=` optionally prefills it. Names are not sent to any LLM. Update the consent copy accordingly: logs are saved under the name, not anonymous.
 
 2. **Wish intake**
    - Free-text field: "What do you want to make happen?"
@@ -193,7 +193,7 @@ One append-only table `events`:
 | client_ts | timestamptz | client time |
 | session_id | uuid | one per browser session |
 | wish_id | uuid, nullable | one per wish within a session |
-| participant_code | text | from `?p=` or generated |
+| participant_code | text | the name entered on the welcome screen |
 | app_version | text | from package.json |
 | provider | text | `static` / `ollama` / `gemini` (the provider actually used, after any fallback) |
 | name | text | event name |

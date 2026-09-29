@@ -18,8 +18,8 @@ export const config = {
 /** Consent copy; edit freely. Chosen by the provider in use. */
 export const consentCopy = {
   intro:
-    "This is a prototype. It suggests first moves for something you want to make happen. Your choices and feedback are logged anonymously for research. Please don't type personal details (names, contact info) into any text field.",
+    "This is a prototype. It suggests first moves for something you want to make happen. Your choices and feedback are saved under the name you enter below, so the researcher can tell participants apart. Please don't type other personal details (like contact info) into any text field.",
   gemini:
-    "What you type (your wish, why, and prior attempts) is sent to Google's Gemini service to generate options, and may be reviewed by Google.",
-  local: "Nothing leaves this test machine except the anonymous log.",
+    "What you type in the wish, why, and prior-attempts fields is sent to Google's Gemini service to generate options, and may be reviewed by Google. Your name is not sent.",
+  local: "Nothing you type leaves this test machine.",
 };

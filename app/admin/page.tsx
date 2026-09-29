@@ -68,7 +68,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
       </header>
 
       <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-tint p-4" aria-label="Filters">
-        {([["from", "From", "date"], ["to", "To", "date"], ["participant", "Participant", "text"]] as const).map(([k, l, t]) => (
+        {([["from", "From", "date"], ["to", "To", "date"], ["participant", "Participant name", "text"]] as const).map(([k, l, t]) => (
           <label key={k} className="flex flex-col gap-1 text-[13px] font-bold text-blue-dark">{l}
             <input name={k} type={t} defaultValue={f[k]} className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm font-medium text-ink" />
           </label>

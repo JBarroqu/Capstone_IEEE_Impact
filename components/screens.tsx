@@ -6,8 +6,9 @@ import { wishes as wishCatalog } from "@/lib/engine/catalog";
 import { quiz, archetypeInfo } from "@/lib/archetypes";
 import { DOMAINS, DOMAIN_LABEL, FOCUSES, FOCUS_LABEL, type Archetype, type Domain, type Focus, type PriorAttempts, type WishType } from "@/lib/types";
 
-export function Welcome({ provider, copy, onContinue }: { provider: string; copy: { intro: string; gemini: string; local: string }; onContinue: () => void }) {
+export function Welcome({ provider, copy, initialName, onContinue }: { provider: string; copy: { intro: string; gemini: string; local: string }; initialName: string; onContinue: (name: string) => void }) {
   const [ok, setOk] = useState(false);
+  const [name, setName] = useState(initialName);
   return (
     <>
       <Hero title="Turn a big wish into a first move" />
@@ -15,12 +16,15 @@ export function Welcome({ provider, copy, onContinue }: { provider: string; copy
         <div className="-mt-8 flex flex-col gap-4 rounded-[14px] border border-line2 bg-white p-5 shadow-[0_8px_24px_rgba(0,40,85,0.12)]">
           <p className="m-0 text-[15px] leading-[1.5]">{copy.intro}</p>
           <p className="m-0 text-[15px] leading-[1.5]">{provider === "gemini" ? copy.gemini : copy.local}</p>
+          <Field id="name" label="Your name">
+            <input id="name" type="text" autoComplete="off" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="First name is fine" className="border-0 bg-transparent p-0 text-lg font-medium text-ink outline-none placeholder:text-muted/70" />
+          </Field>
           <label className="flex min-h-[44px] items-center gap-3 text-[15px] font-semibold">
             <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="h-6 w-6 accent-[#00629B]" />
             I understand
           </label>
         </div>
-        <PrimaryButton disabled={!ok} onClick={onContinue}>Continue</PrimaryButton>
+        <PrimaryButton disabled={!ok || !name.trim()} onClick={() => onContinue(name.trim())}>Continue</PrimaryButton>
       </HeroBody>
     </>
   );
@@ -163,7 +167,7 @@ export function Interstitial({ count, canAdd, onAdd, onDone, onStartOver }: { co
 export function Thanks({ onAgain }: { onAgain: () => void }) {
   return (
     <>
-      <Hero title="Thanks, that helps a lot." sub="Your choices and feedback were logged anonymously." />
+      <Hero title="Thanks, that helps a lot." sub="Your choices and feedback were saved under your name." />
       <HeroBody>
         <PrimaryButton onClick={onAgain}>Try another wish</PrimaryButton>
       </HeroBody>

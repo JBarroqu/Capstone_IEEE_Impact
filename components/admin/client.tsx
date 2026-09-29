@@ -40,14 +40,14 @@ export function Moderator() {
   return (
     <div className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-line p-4">
       <h3 className="m-0 text-base font-extrabold">Moderator</h3>
-      <Field id="mod-code" label="Participant code">
+      <Field id="mod-code" label="Participant name">
         <input id="mod-code" type="text" value={code} onChange={(e) => setCode(e.target.value)} className="border-0 bg-transparent p-0 text-lg outline-none" />
       </Field>
       <textarea readOnly aria-label="Test link" rows={2} value={link} className={`${textareaCls} rounded-lg bg-chip p-2 text-sm`} onFocus={(e) => e.currentTarget.select()} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="min-h-[44px] rounded-full bg-chip px-3.5 text-sm font-bold hover:bg-tint" onClick={() => navigator.clipboard?.writeText(link)}>Copy link</button>
         <button type="button" className="min-h-[44px] rounded-full border-2 border-[#B3261E] bg-white px-3.5 text-sm font-bold text-[#B3261E]" onClick={async () => {
-          if (!confirm("Delete all sessions whose participant code starts with TEST?")) return;
+          if (!confirm("Delete all sessions whose participant code starts with TEST (any case)?")) return;
           const r = await fetch("/api/admin/delete-test", { method: "POST" }).then((x) => x.json()).catch(() => null);
           setMsg(r?.ok ? `Deleted ${r.deleted} test session(s).` : "Delete failed.");
         }}>Delete TEST sessions</button>

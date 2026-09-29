@@ -16,7 +16,7 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 Run `npm run llm:check` to send one sample wish to the configured provider and print the 3 moves, latency, and validation result.
 
 ## Running a test session
-Give each participant a link like `http://localhost:3000/?p=P08`. Codes starting with `TEST` can be bulk-deleted from the admin moderator box.
+Each new session asks for a name on the first screen; that name is the participant label in all data. `?p=NAME` optionally prefills it. Names starting with `TEST` (e.g. `TEST Waleed`) can be bulk-deleted from the admin moderator box.
 
 ## Exporting data
 `/admin` (password from `ADMIN_PASSWORD`) offers `events.csv`, `choices.csv`, `feedback.csv`, `moves.csv`; the same routes accept filters: `/api/admin/export/choices?provider=...&from=YYYY-MM-DD&to=YYYY-MM-DD`.
