@@ -1,0 +1,42 @@
+# docker compose up --build  ->  app on http://localhost:3010 (or PORT), admin at /admin.
+# Reads API keys, ADMIN_PASSWORD, FLOW_MOVES etc. from .env; DATABASE_URL and OLLAMA_URL are set here for the containers.
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: wish
+      POSTGRES_PASSWORD: wish
+      POSTGRES_DB: wish_engine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wish -d wish_engine"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # Creates/updates tables from lib/db/schema.ts, then exits.
+  migrate:
+    build: { context: ., target: build }
+    command: ["npx", "drizzle-kit", "push", "--force"]
+    environment:
+      DATABASE_URL: postgres://wish:wish@db:5432/wish_engine
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runner }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://wish:wish@db:5432/wish_engine
+      # Ollama running on the host Mac (optional backup model).
+      OLLAMA_URL: http://host.docker.internal:11434
+    ports:
+      - "${PORT:-3010}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+volumes:
+  pgdata:

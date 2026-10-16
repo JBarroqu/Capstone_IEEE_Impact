@@ -8,14 +8,24 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 3. `npm run db:push` to create tables, `npm run seed` to validate `data/*.json`.
 4. `npm run dev` (or `npm run dev:lan` so other devices on your Wi-Fi can reach it).
 
-## Providers (`MOVE_PROVIDER`)
-- `gemini` (default): needs `GEMINI_API_KEY`; rate-limited in-memory (`GEMINI_RPM`, default 9/min).
-- `ollama`: local model; set `OLLAMA_MODEL` to a 7-8B instruct model that supports JSON-schema output. Not reachable from Vercel.
+## Docker (alternative to the setup above)
+Needs Docker Desktop and a `.env` (API keys, `ADMIN_PASSWORD`, `FLOW_MOVES`, ...). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres.
+```
+docker compose up -d --build     # app on http://localhost:3010, admin at /admin
+docker compose logs -f app       # server logs
+docker compose down              # stop (data is kept in the pgdata volume)
+docker compose down -v           # stop and delete all data
+```
+`PORT=3020 docker compose up -d` picks another port. Tables are created on every start by the `migrate` service. After code changes, rebuild with `docker compose up -d --build`. Ollama on the Mac is reached at `host.docker.internal:11434`.
+
+## Models (`MOVE_PROVIDER`)
+- `auto` (default): every available model with automatic failover. Gemini models are discovered from the API (no model setting needed); Groq / OpenRouter join if `GROQ_API_KEY` / `OPENROUTER_API_KEY` is set; a local Ollama joins if it is running.
+- `gemini` / `ollama`: only that service.
 - `static`: rule-based catalog only; use it only as a deliberate control condition.
 
-If the LLM fails (timeouts, 503s, rate limits), the app retries up to `LLM_ATTEMPTS` times (each with its own `LLM_TIMEOUT_MS`), then shows the student a "Try again" message and logs `options_failed`. It never quietly substitutes static moves unless you set `LLM_FALLBACK=static`.
+A model that errors or takes longer than `LLM_TIMEOUT_MS` is skipped for the next one and put on cooldown. If every model fails (or `LLM_BUDGET_MS` runs out), the student sees a "Try again" message and `options_failed` is logged; static moves are never substituted unless `LLM_FALLBACK=static`. The admin page's Models panel shows each model's status and lets you choose which to try first.
 
-Run `npm run llm:check` to send one sample wish to the configured provider and print the 3 moves, latency, and validation result.
+`npm run llm:check -- "some wish" --all` prints the model chain, pings every model, and generates one sample set of moves.
 
 ## Running a test session
 Each new session asks for a name on the first screen; that name is the participant label in all data. `?p=NAME` optionally prefills it. Names starting with `TEST` (e.g. `TEST Waleed`) can be bulk-deleted from the admin moderator box.
