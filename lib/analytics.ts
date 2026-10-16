@@ -191,3 +191,59 @@ export function eventsRows(ev: EventRow[]) {
     provider: e.provider, name: e.name, step: e.step, payload: JSON.stringify(e.payload),
   }));
 }
+
+export type Round = {
+  reroll: number; moveIds: string[];
+  outcome: { kind: "picked"; moveId: string; position: number | null; ms: number | null } | { kind: "rejected"; reason: string } | { kind: "skipped" } | { kind: "open" };
+};
+export type WishJourney = {
+  wishId: string | null; text: string; why: string; archetype: string; focus: string[]; domains: string[]; classifierChanged: boolean | null;
+  steps: { step: number; rounds: Round[]; failed: number; useful: string | null }[];
+  path: string[] | null; rating: number | null; wouldDo: string | null; paid: { moveId: string; answer: string }[]; openFeedback: string | null;
+};
+export type Journey = { sessionId: string; participant: string; provider: string | null; started: Date; lastSeen: Date; wishes: WishJourney[] };
+
+/** One entry per session: each wish, the options shown at every step, what the student did with them, and their feedback. */
+export function journeys(ev: EventRow[], wishes: WishRow[]): Journey[] {
+  const wm = new Map(wishes.map((w) => [w.id, w]));
+  const bySession = new Map<string, EventRow[]>();
+  for (const e of [...ev].sort((a, b) => t(a) - t(b))) (bySession.get(e.sessionId) ?? bySession.set(e.sessionId, []).get(e.sessionId)!).push(e);
+
+  const out: Journey[] = [];
+  for (const [sessionId, se] of bySession) {
+    const wishIds = [...new Set(se.map((e) => e.wishId).filter(Boolean))] as string[];
+    const wj = wishIds.map((wishId): WishJourney => {
+      const we = se.filter((e) => e.wishId === wishId);
+      const one = (n: string) => we.findLast((e) => e.name === n)?.payload;
+      const w = wm.get(wishId);
+      const steps = new Map<number, WishJourney["steps"][number]>();
+      const stepOf = (n: number) => steps.get(n) ?? steps.set(n, { step: n, rounds: [], failed: 0, useful: null }).get(n)!;
+      for (const e of we) {
+        if (e.step == null) continue;
+        const s = stepOf(e.step);
+        const cur = s.rounds.at(-1);
+        const close = (o: Round["outcome"]) => { if (cur?.outcome.kind === "open") cur.outcome = o; };
+        if (e.name === "options_shown") s.rounds.push({ reroll: Number(e.payload.reroll_index ?? 0), moveIds: e.payload.move_ids ?? [], outcome: { kind: "open" } });
+        else if (e.name === "move_locked") close({ kind: "picked", moveId: e.payload.move_id, position: e.payload.position ?? null, ms: e.payload.ms_since_shown ?? null });
+        else if (e.name === "options_rejected") close({ kind: "rejected", reason: [e.payload.reason_chip, e.payload.text].filter(Boolean).join(": ") || "no reason" });
+        else if (e.name === "step_skipped") close({ kind: "skipped" });
+        else if (e.name === "options_failed") s.failed++;
+        else if (e.name === "options_feedback") s.useful = String(e.payload.answer);
+      }
+      const rating = Number(one("path_rated")?.rating);
+      return {
+        wishId, text: w?.text ?? one("wish_submitted")?.text ?? "", why: w?.why ?? "", archetype: w?.archetype ?? one("archetype_assigned")?.archetype ?? "",
+        focus: w?.focus ?? [], domains: w?.domains ?? [], classifierChanged: one("classification_confirmed")?.changed ?? null,
+        steps: [...steps.values()].sort((a, b) => a.step - b.step),
+        path: one("path_completed")?.move_ids ?? null, rating: isNaN(rating) ? null : rating, wouldDo: one("would_do_this_week")?.answer ?? null,
+        paid: we.filter((e) => e.name === "paid_willingness").map((e) => ({ moveId: e.payload.move_id, answer: String(e.payload.answer) })),
+        openFeedback: one("open_feedback")?.text || null,
+      };
+    });
+    out.push({
+      sessionId, participant: se[0].participantCode, provider: se.find((e) => e.provider)?.provider ?? null,
+      started: new Date(se[0].createdAt), lastSeen: new Date(se.at(-1)!.createdAt), wishes: wj,
+    });
+  }
+  return out.sort((a, b) => b.started.getTime() - a.started.getTime());
+}

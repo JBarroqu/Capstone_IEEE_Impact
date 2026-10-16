@@ -34,5 +34,7 @@ export async function loadData(f: Filters) {
     const m = g.move as any;
     meta.set(g.id, { id: g.id, title: m.title, step: m.step, focus: m.focus, cost: m.cost, source: "generated" });
   }
-  return { events, wishes, meta, generated: gen };
+  // All sessions, oldest first: stable anonymous labels (P1, P2, ...) and the participant picker.
+  const sessions = await db.select({ id: schema.sessions.id, participant: schema.sessions.participantCode, createdAt: schema.sessions.createdAt }).from(schema.sessions).orderBy(schema.sessions.createdAt);
+  return { events, wishes, meta, generated: gen, sessions };
 }

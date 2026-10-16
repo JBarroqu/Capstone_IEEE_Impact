@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { leaderboard, funnel, rejectReasons, classifierAccuracy, choicesRows, feedbackRows, keyNumbers, type EventRow, type WishRow } from "@/lib/analytics";
+import { leaderboard, funnel, rejectReasons, classifierAccuracy, choicesRows, feedbackRows, keyNumbers, journeys, type EventRow, type WishRow } from "@/lib/analytics";
 import { toCsv } from "@/lib/csv";
 
 let i = 0;
@@ -47,5 +47,24 @@ describe("analytics", () => {
     expect(c.startsWith("﻿")).toBe(true);
     expect(c).toContain('"x,""y"""');
     expect(c).toContain('"{""k"":1}"');
+  });
+});
+
+describe("journeys", () => {
+  it("groups each session's rounds per step with outcomes and feedback", () => {
+    const [j] = journeys([...log, ev("options_feedback", { answer: "somewhat" }), ev("step_skipped", {}, { step: 2 }), ev("options_shown", { move_ids: ["x"] }, { step: 2 })], wishes);
+    expect(j).toMatchObject({ sessionId: "s1", participant: "P01" });
+    const w = j.wishes[0];
+    expect(w).toMatchObject({ text: "Learn DevOps", archetype: "builder", classifierChanged: false, rating: 4, wouldDo: "yes", openFeedback: "nice", path: ["d"] });
+    expect(w.steps[0].rounds.map((r) => r.outcome)).toEqual([
+      { kind: "rejected", reason: "too big" },
+      { kind: "picked", moveId: "d", position: 0, ms: 4000 },
+    ]);
+    expect(w.steps[0].useful).toBe("somewhat");
+    expect(w.steps[1].rounds).toEqual([{ reroll: 0, moveIds: ["x"], outcome: { kind: "open" } }]);
+  });
+  it("separates sessions", () => {
+    const js = journeys([ev("wish_submitted", {}, { sessionId: "a", wishId: "wa", step: null }), ev("wish_submitted", {}, { sessionId: "b", wishId: "wb", step: null })], []);
+    expect(js.map((j) => j.sessionId)).toEqual(["b", "a"]);
   });
 });
