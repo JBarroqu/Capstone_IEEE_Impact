@@ -24,6 +24,7 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - Zod 4: use `z.partialRecord` for enum-keyed optional maps (`z.record` demands all keys).
 - Generated move ids are `gen-` + hash(normalized title + step); catalog ids are slugs.
 - Env vars: see `.env.example`. `MOVE_PROVIDER` defaults to `auto` (all available models). No model env var is needed; models are discovered. `npm run llm:check -- "wish" --all` pings every model in the chain.
+- `FLOW_MOVES=1` (default): pick move 1, then straight to the rating screen (quick survey); `FLOW_MOVES=3` restores the full path.
 - Student flow lives in `components/Flow.tsx` (state machine) with screens in `screens.tsx`, `Pick.tsx`, `Summary.tsx`; admin is `app/admin/page.tsx` (server component) + `components/admin/client.tsx`.
 - `/api/wish` is an upsert on purpose: client updates for one wish arrive out of order.
 - Gemini models get retired or overloaded often; `gemini-3.1-flash-lite` was reliable on 2026-09-28 but returned 503 on 2026-10-15, when `gemini-3.5-flash-lite` worked (~2s). Test with `GEMINI_MODEL=... npm run llm:check`; in zsh write `${m}:generateContent`, not `$m:generateContent`, in curl loops.

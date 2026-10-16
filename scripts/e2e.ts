@@ -32,8 +32,10 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
   await page.getByRole("button", { name: "Continue" }).click(); // why/prior, leave empty
   for (let i = 0; i < 3; i++) { await page.locator("main button").nth(i === 0 ? 1 : 1).waitFor(); await shot(`4-quiz${i}`); await page.locator("main button:not([aria-label])").filter({ hasText: /./ }).nth(1).click(); }
 
-  for (let step = 1; step <= 3; step++) {
-    await page.getByText(`Move ${step} of 3`).waitFor();
+  await page.getByText(/Move 1 of \d/).waitFor();
+  const total = Number((await page.getByText(/Move 1 of \d/).textContent())!.match(/of (\d)/)![1]); // FLOW_MOVES
+  for (let step = 1; step <= total; step++) {
+    await page.getByText(`Move ${step} of ${total}`).waitFor();
     await page.locator("button[aria-pressed]").first().waitFor({ timeout: 30000 }).catch(async (e) => { await shot("fail"); console.log(errors.join("\n")); throw e; });
     await page.waitForFunction(() => document.querySelectorAll("button[aria-pressed]").length === 3);
     if (step === 1) {
@@ -48,11 +50,12 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
     await page.locator("button[aria-pressed]").nth(1).click(); await shot(`7-selected${step}`);
     await page.getByRole("button", { name: `Lock in move ${step}` }).click();
   }
-  await page.getByRole("button", { name: "I'm done" }).click(); await shot("8-summary");
+  if (total > 1) await page.getByRole("button", { name: "I'm done" }).click();
+  await shot("8-summary");
   await page.getByRole("button", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Yes", exact: true }).first().click();
   for (const b of await page.getByRole("button", { name: "Maybe" }).all().then((x) => x.slice(1))) await b.click();
-  await page.getByLabel(/Anything confusing/).fill("Looks good");
+  await page.getByLabel(/Anything confusing|more useful/).fill("Looks good");
   await page.getByRole("button", { name: "Submit" }).click();
   await page.getByText("Try another wish").waitFor(); await shot("9-thanks");
   await page.waitForTimeout(2000);

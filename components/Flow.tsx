@@ -16,7 +16,7 @@ type Session = { sessionId: string; participantCode: string };
 const blankWish = (): Wish => ({ id: uuid(), text: "", type: "open_ended", focus: [], domains: [], prior: { chips: [] } });
 const MAX_STEPS = 5;
 
-export default function Flow({ consentCopy }: { consentCopy: { intro: string; data: string } }) {
+export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro: string; data: string }; flowMoves: 1 | 3 }) {
   // ?p=NAME (optional) prefills the name box; participants can still edit it.
   const [initialName] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("p")?.trim().slice(0, 60) ?? ""));
   const [screen, setScreen] = useState<Screen>("welcome");
@@ -25,7 +25,7 @@ export default function Flow({ consentCopy }: { consentCopy: { intro: string; da
   const [archetype, setArchetype] = useState<Archetype>();
   const [path, setPath] = useState<Move[]>([]);
   const [step, setStep] = useState(1);
-  const [totalSteps, setTotalSteps] = useState(3);
+  const [totalSteps, setTotalSteps] = useState<number>(flowMoves);
   const [paidShown, setPaidShown] = useState<Move[]>([]);
   const prefetch = useRef(new Map<string, Promise<Awaited<ReturnType<typeof fetchOptions>>>>());
   // The wish is classified in the background after submit; every move request waits for it.
@@ -50,7 +50,7 @@ export default function Flow({ consentCopy }: { consentCopy: { intro: string; da
   }, [wish, session, archetype]);
 
   const startPrefetch = (nextStep: number, chosen: Move[]) => {
-    if (nextStep > MAX_STEPS) return;
+    if (nextStep > MAX_STEPS || flowMoves === 1) return;
     const a = { step: nextStep, chosen, excludeIds: [], rerollIndex: 0 };
     const p = withClass(wish).then((w) => fetchOptions(body(w, a)));
     p.catch(() => prefetch.current.delete(`${wish.id}:${nextStep}`));
@@ -81,7 +81,7 @@ export default function Flow({ consentCopy }: { consentCopy: { intro: string; da
   const startOverWish = (logEvent: boolean) => {
     if (logEvent) track("start_over", { last_screen: screenRef.current });
     const w = blankWish();
-    setWish(w); setPath([]); setStep(1); setTotalSteps(3); setPaidShown([]); prefetch.current.clear(); classified.current = null;
+    setWish(w); setPath([]); setStep(1); setTotalSteps(flowMoves); setPaidShown([]); prefetch.current.clear(); classified.current = null;
     if (session) setTrackContext({ ...session, wishId: w.id });
     go("intake");
   };
@@ -98,7 +98,8 @@ export default function Flow({ consentCopy }: { consentCopy: { intro: string; da
   };
   const advance = (chosen: Move[]) => {
     const next = step + 1;
-    if (step >= MAX_STEPS) return finish(chosen);
+    // Quick-survey mode: straight to the rating screen after the first move.
+    if (flowMoves === 1 || step >= MAX_STEPS) return finish(chosen);
     if (step >= 3) { go("more"); return; }
     setStep(next);
     startPrefetch(next, chosen);
@@ -159,7 +160,7 @@ export default function Flow({ consentCopy }: { consentCopy: { intro: string; da
       )}
       {screen === "more" && <Interstitial count={path.length} canAdd={step < MAX_STEPS} onAdd={addMore} onDone={() => finish(path)} onStartOver={() => startOverWish(true)} />}
       {screen === "summary" && (
-        <Summary wishText={wish.text} why={wish.why} path={path} paidShown={paidShown} onStartOver={() => startOverWish(true)}
+        <Summary single={flowMoves === 1} wishText={wish.text} why={wish.why} path={path} paidShown={paidShown} onStartOver={() => startOverWish(true)}
           onSubmit={(a: FeedbackAnswers) => {
             track("path_rated", { rating: a.rating });
             if (a.doThisWeek) track("would_do_this_week", { answer: a.doThisWeek });
