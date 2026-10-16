@@ -68,3 +68,16 @@ describe("journeys", () => {
     expect(js.map((j) => j.sessionId)).toEqual(["b", "a"]);
   });
 });
+
+describe("event ordering", () => {
+  it("orders a batch by client time when server times are equal", () => {
+    const at = new Date(1_800_000_000_000);
+    const c = (n: number) => new Date(1_800_000_000_000 + n);
+    const batch = [
+      ev("move_locked", { move_id: "a", position: 0 }, { createdAt: at, clientTs: c(2) }),
+      ev("options_shown", { move_ids: ["a", "b", "c"] }, { createdAt: at, clientTs: c(1) }),
+    ];
+    expect(journeys(batch, wishes)[0].wishes[0].steps[0].rounds[0].outcome).toMatchObject({ kind: "picked", moveId: "a" });
+    expect(choicesRows(batch, wishes)).toHaveLength(1);
+  });
+});

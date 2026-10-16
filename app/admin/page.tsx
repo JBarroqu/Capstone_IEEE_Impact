@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { isAdmin } from "@/lib/admin-auth";
 import { loadData, parseFilters, type Filters } from "@/lib/admin-data";
-import { classifierAccuracy, feedback, funnel, groupBy, journeys, keyNumbers, leaderboard, rejectReasons, type Journey, type MoveMeta, type Round } from "@/lib/analytics";
+import { feedback, funnel, groupBy, journeys, keyNumbers, leaderboard, rejectReasons, type Journey, type MoveMeta, type Round } from "@/lib/analytics";
 import { AdminLogin, CopyJson, Moderator } from "@/components/admin/client";
 import { Tag } from "@/components/ui";
 
@@ -17,6 +17,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const Th = ({ children }: { children?: React.ReactNode }) => <th scope="col" className="whitespace-nowrap border-b-2 border-line px-3 py-2 text-left text-[13px] font-bold text-blue-dark">{children}</th>;
 const Td = ({ children, right, colSpan }: { children?: React.ReactNode; right?: boolean; colSpan?: number }) => <td colSpan={colSpan} className={`border-b border-line2 px-3 py-2 align-top text-sm ${right ? "text-right tabular-nums" : ""}`}>{children}</td>;
 const Table = ({ children }: { children: React.ReactNode }) => <div className="overflow-x-auto rounded-[14px] border border-line2"><table className="w-full border-collapse">{children}</table></div>;
+const tally = (xs: string[]) => xs.reduce<Record<string, number>>((o, x) => ((o[x] = (o[x] ?? 0) + 1), o), {});
 const pct = (n: number | null | undefined) => (n == null ? "–" : `${Math.round(n * 100)}%`);
 const dash = (v: unknown) => (v == null || v === "" ? "–" : String(v));
 const split = (o: Record<string, number> | undefined) => (o && Object.keys(o).length ? Object.entries(o).map(([k, v]) => `${k} ${v}`).join(" · ") : "–");
@@ -29,8 +30,9 @@ function status(j: Journey) {
   if (!w) return "No wish yet";
   if (w.rating != null) return `Rated ${w.rating}/5`;
   if (w.path) return "Path done, no rating";
-  const last = w.steps.at(-1);
-  return last ? `Stopped at move ${last.step}` : "Stopped before moves";
+  const locked = w.steps.filter((s) => s.rounds.some((r) => r.outcome.kind === "picked")).length;
+  if (!w.steps.length) return "Left before moves";
+  return `Left after locking ${locked} move${locked === 1 ? "" : "s"}`;
 }
 
 function Outcome({ r }: { r: Round }) {
@@ -61,7 +63,6 @@ function JourneyCard({ j, label, showName, meta }: { j: Journey; label: string; 
               <div className="text-base font-semibold">{w.text || "–"}</div>
               <div className="mt-1 text-[13px] text-muted">
                 Focus {w.focus.join(", ") || "–"} · Area {w.domains.join(", ") || "–"} · Archetype {w.archetype || "–"}
-                {w.classifierChanged != null && ` · ${w.classifierChanged ? "changed" : "kept"} the guess`}
               </div>
               {w.why && <div className="mt-1 text-[13px]"><b>Why:</b> {w.why}</div>}
             </div>
@@ -133,7 +134,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
   const max = Math.max(1, fn[0].n);
   const lb = leaderboard(events, meta);
   const rr = rejectReasons(events);
-  const ca = classifierAccuracy(events);
   const fb = feedback(events, wishes);
   const byProvider = groupBy(events, (e) => e.provider ?? "unknown", keyNumbers);
   const exportQs = qs(f, {});
@@ -215,10 +215,10 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
       <Section title="Provider comparison">
         {Object.keys(byProvider).length === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
           <Table>
-            <thead><tr><Th>Provider</Th><Th>Sessions</Th><Th>Rated</Th><Th>Avg rating</Th><Th>Would do this week</Th><Th>Options useful</Th><Th>Median latency ms</Th><Th>LLM failed</Th><Th>Static fallback</Th><Th>Reroll rate</Th><Th>Classifier kept</Th></tr></thead>
+            <thead><tr><Th>Provider</Th><Th>Sessions</Th><Th>Rated</Th><Th>Avg rating</Th><Th>Would do this week</Th><Th>Options useful</Th><Th>Median latency ms</Th><Th>LLM failed</Th><Th>Static fallback</Th><Th>Reroll rate</Th></tr></thead>
             <tbody>
               {Object.entries(byProvider).map(([k, v]) => (
-                <tr key={k}><Td><b>{k}</b></Td><Td right>{v.sessions}</Td><Td right>{v.completedRated}</Td><Td right>{dash(v.avgRating)}</Td><Td>{split(v.wouldDoThisWeek)}</Td><Td>{split(v.optionsUseful)}</Td><Td right>{dash(v.medianLatencyMs)}</Td><Td right>{v.failedRate == null ? "–" : `${v.failedRate}%`}</Td><Td right>{v.fallbackRate == null ? "–" : `${v.fallbackRate}%`}</Td><Td right>{v.rerollRate == null ? "–" : `${v.rerollRate}%`}</Td><Td right>{v.classifierAccuracyPct == null ? "–" : `${v.classifierAccuracyPct}%`}</Td></tr>
+                <tr key={k}><Td><b>{k}</b></Td><Td right>{v.sessions}</Td><Td right>{v.completedRated}</Td><Td right>{dash(v.avgRating)}</Td><Td>{split(v.wouldDoThisWeek)}</Td><Td>{split(v.optionsUseful)}</Td><Td right>{dash(v.medianLatencyMs)}</Td><Td right>{v.failedRate == null ? "–" : `${v.failedRate}%`}</Td><Td right>{v.fallbackRate == null ? "–" : `${v.fallbackRate}%`}</Td><Td right>{v.rerollRate == null ? "–" : `${v.rerollRate}%`}</Td></tr>
               ))}
             </tbody>
           </Table>
@@ -257,8 +257,18 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
         )}
       </Section>
 
-      <Section title="Classifier accuracy">
-        <p className="m-0 text-base">{ca.pct == null ? "No data yet." : <><b className="text-2xl">{ca.pct}%</b> of wishes kept the guessed focus and area ({ca.kept} of {ca.total}).</>}</p>
+      <Section title="Wish categories">
+        {wishes.length === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
+          <Table>
+            <tbody>
+              <tr><Td><b>Area</b></Td><Td>{split(tally(wishes.flatMap((w) => w.domains ?? [])))}</Td></tr>
+              <tr><Td><b>Kind of wish</b></Td><Td>{split(tally(wishes.flatMap((w) => w.focus ?? [])))}</Td></tr>
+              <tr><Td><b>Finish line</b></Td><Td>{split(tally(wishes.map((w) => (w.type === "fixed" ? "clear" : "open-ended"))))}</Td></tr>
+              <tr><Td><b>Archetype</b></Td><Td>{split(tally(wishes.map((w) => w.archetype ?? "none")))}</Td></tr>
+            </tbody>
+          </Table>
+        )}
+        <p className="mt-2 text-[13px] text-muted">Classified automatically from the wish text by keyword matching; students do not see or confirm it. Wishes with no matching keywords count toward no area or kind.</p>
       </Section>
 
       <Section title="Feedback">

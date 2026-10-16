@@ -5,7 +5,7 @@ const env = (k: string, d = "") => process.env[k] ?? d;
 export const config = {
   provider: env("MOVE_PROVIDER", "gemini") as ProviderName,
   geminiKey: env("GEMINI_API_KEY"),
-  geminiModel: env("GEMINI_MODEL", "gemini-3.1-flash-lite"),
+  geminiModel: env("GEMINI_MODEL", "gemini-3.5-flash-lite"),
   ollamaUrl: env("OLLAMA_URL", "http://localhost:11434"),
   ollamaModel: env("OLLAMA_MODEL", "llama3.1:8b"),
   /** Per attempt. Long on purpose: we would rather wait than show non-LLM moves. */

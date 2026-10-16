@@ -1,7 +1,7 @@
 import type { Move } from "./types";
 
 export type EventRow = {
-  id?: string; createdAt: Date | string; sessionId: string; wishId: string | null; participantCode: string;
+  id?: string; createdAt: Date | string; clientTs?: Date | string | null; sessionId: string; wishId: string | null; participantCode: string;
   provider: string | null; name: string; step: number | null; payload: Record<string, any>;
 };
 export type WishRow = {
@@ -135,7 +135,8 @@ export function groupBy<T>(ev: EventRow[], key: (e: EventRow) => string, f: (ev:
   return Object.fromEntries([...g.entries()].sort().map(([k, v]) => [k, f(v)]));
 }
 
-const t = (e: EventRow) => new Date(e.createdAt).getTime();
+// Client time orders events: one batch is inserted with a single server createdAt.
+const t = (e: EventRow) => new Date(e.clientTs ?? e.createdAt).getTime();
 
 /** One row per decision (a set of shown options and its outcome). */
 export function choicesRows(ev: EventRow[], wishes: WishRow[]) {
@@ -242,7 +243,7 @@ export function journeys(ev: EventRow[], wishes: WishRow[]): Journey[] {
     });
     out.push({
       sessionId, participant: se[0].participantCode, provider: se.find((e) => e.provider)?.provider ?? null,
-      started: new Date(se[0].createdAt), lastSeen: new Date(se.at(-1)!.createdAt), wishes: wj,
+      started: new Date(t(se[0])), lastSeen: new Date(t(se.at(-1)!)), wishes: wj,
     });
   }
   return out.sort((a, b) => b.started.getTime() - a.started.getTime());

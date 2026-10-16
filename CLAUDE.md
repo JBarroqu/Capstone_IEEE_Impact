@@ -25,6 +25,6 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - Env vars: see `.env.example`. `MOVE_PROVIDER` defaults to `gemini` and silently uses `static` if `GEMINI_API_KEY` is empty.
 - Student flow lives in `components/Flow.tsx` (state machine) with screens in `screens.tsx`, `Pick.tsx`, `Summary.tsx`; admin is `app/admin/page.tsx` (server component) + `components/admin/client.tsx`.
 - `/api/wish` is an upsert on purpose: client updates for one wish arrive out of order.
-- Gemini models get retired often; `gemini-3.1-flash-lite` was the reliable one on 2026-09-28 (bigger flash models returned 503).
+- Gemini models get retired or overloaded often; `gemini-3.1-flash-lite` was reliable on 2026-09-28 but returned 503 on 2026-10-15, when `gemini-3.5-flash-lite` worked (~2s). Test with `GEMINI_MODEL=... npm run llm:check`; in zsh write `${m}:generateContent`, not `$m:generateContent`, in curl loops.
 - Database: local Postgres 15 (brew service), db `wish_engine`; `DATABASE_URL` in `.env`. Tests never need it; e2e and the app do.
 - `crypto.randomUUID` is undefined on plain-http LAN URLs (only HTTPS/localhost); always use `uuid()` from `lib/uuid.ts` in client code. Same for `navigator.clipboard`.

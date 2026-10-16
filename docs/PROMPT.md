@@ -61,6 +61,7 @@ Desktop/laptop-first (design at ~1280px wide, a centered content column of ~640�
    - Continue.
 
 3. **Classify (student confirms)**
+   - **UPDATE (2026-10-15): no confirmation screen.** The wish is classified silently on submit (keywords → focus/domain; type = `fixed` if focus includes goal, else `open_ended`), saved to the wish row and logged as `classification_guessed`. `classification_confirmed` is no longer emitted. The bullets below are superseded.
    - The engine guesses **domain** and **focus** from keywords (Section 4) and shows them as pre-selected chips: "Sounds like: *Connect* · *Leadership & Network*. Right?"
    - Student can change the selection. Log both the guess and the final answer (this measures classifier accuracy).
    - Also ask type: "Is there a clear finish line?" Yes → `fixed`, Not really → `open_ended`.

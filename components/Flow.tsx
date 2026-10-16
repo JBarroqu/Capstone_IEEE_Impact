@@ -1,15 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Classify, Intake, Interstitial, Quiz, Thanks, Welcome, WhyPrior, type Confirmed } from "./screens";
+import { Intake, Interstitial, Quiz, Thanks, Welcome, WhyPrior } from "./screens";
 import { Pick, type LoadOptions } from "./Pick";
 import { Summary, type FeedbackAnswers } from "./Summary";
 import { flush, setConsent, setTrackContext, track } from "@/lib/track";
 import { fetchOptions, postJson, saveWish } from "@/lib/client-api";
 import { assignArchetype } from "@/lib/archetypes";
+import { classifyWish } from "@/lib/engine/classify";
 import { uuid } from "@/lib/uuid";
 import type { Archetype, Domain, Focus, Move, PriorAttempts, WishContext, WishType } from "@/lib/types";
 
-type Screen = "welcome" | "intake" | "classify" | "why" | "quiz" | "pick" | "more" | "summary" | "thanks";
+type Screen = "welcome" | "intake" | "why" | "quiz" | "pick" | "more" | "summary" | "thanks";
 type Wish = { id: string; text: string; type: WishType; focus: Focus[]; domains: Domain[]; why?: string; prior: PriorAttempts };
 type Session = { sessionId: string; participantCode: string };
 
@@ -113,22 +114,15 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
       {screen === "welcome" && <Welcome provider={provider} copy={consentCopy} initialName={initialName} onContinue={begin} />}
       {screen === "intake" && (
         <Intake initial={wish.text} onStartOver={() => startOverWish(true)} onSubmit={(text, fromChip) => {
-          setWish((w) => ({ ...w, text }));
+          // Classified silently (no confirmation screen); stored for analytics and used to steer the moves.
+          const g = classifyWish(text);
+          const type = g.focus.includes("goal") ? "fixed" : "open_ended";
+          setWish((w) => ({ ...w, text, focus: g.focus, domains: g.domains, type }));
           track("wish_submitted", { text, from_chip: fromChip });
-          saveWish({ id: wish.id, sessionId: session!.sessionId, text, fromChip });
-          go("classify");
+          track("classification_guessed", { focus: g.focus, domains: g.domains, confidence: g.confidence, type });
+          saveWish({ id: wish.id, sessionId: session!.sessionId, text, fromChip, guessedFocus: g.focus, guessedDomains: g.domains, focus: g.focus, domains: g.domains, type });
+          go("why");
         }} />
-      )}
-      {screen === "classify" && (
-        <Classify wishText={wish.text} onStartOver={() => startOverWish(true)}
-          onGuess={(g) => { track("classification_guessed", { focus: g.focus, domains: g.domains, confidence: g.confidence }); saveWish({ id: wish.id, sessionId: session!.sessionId, guessedFocus: g.focus, guessedDomains: g.domains }); }}
-          onConfirm={(c: Confirmed) => {
-            const changed = JSON.stringify([...c.focus].sort()) !== JSON.stringify([...c.guess.focus].sort()) || JSON.stringify([...c.domains].sort()) !== JSON.stringify([...c.guess.domains].sort());
-            track("classification_confirmed", { guess_focus: c.guess.focus, guess_domains: c.guess.domains, final_focus: c.focus, final_domains: c.domains, type: c.type, changed });
-            setWish((w) => ({ ...w, focus: c.focus, domains: c.domains, type: c.type }));
-            saveWish({ id: wish.id, sessionId: session!.sessionId, focus: c.focus, domains: c.domains, type: c.type });
-            go("why");
-          }} />
       )}
       {screen === "why" && (
         <WhyPrior wishText={wish.text} onStartOver={() => startOverWish(true)} onDone={(why, prior, skippedAll) => {

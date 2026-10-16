@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Chip, Choice, Field, Heading, Hero, HeroBody, Page, PrimaryButton, TextButton, textareaCls, WishTile } from "./ui";
-import { classifyWish } from "@/lib/engine/classify";
+import { useMemo, useState } from "react";
+import { Chip, Field, Heading, Hero, HeroBody, Page, PrimaryButton, TextButton, textareaCls, WishTile } from "./ui";
 import { wishes as wishCatalog } from "@/lib/engine/catalog";
 import { quiz, archetypeInfo } from "@/lib/archetypes";
-import { DOMAINS, DOMAIN_LABEL, FOCUSES, FOCUS_LABEL, type Archetype, type Domain, type Focus, type PriorAttempts, type WishType } from "@/lib/types";
+import type { Archetype, PriorAttempts } from "@/lib/types";
 
 export function Welcome({ provider, copy, initialName, onContinue }: { provider: string; copy: { intro: string; gemini: string; local: string }; initialName: string; onContinue: (name: string) => void }) {
   const [ok, setOk] = useState(false);
@@ -54,43 +53,6 @@ export function Intake({ initial, onStartOver, onSubmit }: { initial: string; on
         <PrimaryButton disabled={!trimmed} onClick={() => onSubmit(trimmed, chip === trimmed)}>Continue</PrimaryButton>
       </HeroBody>
     </>
-  );
-}
-
-export type Confirmed = { focus: Focus[]; domains: Domain[]; type: WishType; guess: { focus: Focus[]; domains: Domain[]; confidence: number } };
-
-const focusHelp: Record<Focus, string> = {
-  learn: "understand something", goal: "hit a specific target", system: "build a routine", advance: "ship or level up", lead: "guide other people", connect: "meet the right people",
-};
-
-export function Classify({ wishText, onGuess, onStartOver, onConfirm }: { wishText: string; onGuess: (g: Confirmed["guess"]) => void; onStartOver: () => void; onConfirm: (c: Confirmed) => void }) {
-  const guess = useMemo(() => classifyWish(wishText), [wishText]);
-  const [focus, setFocus] = useState<Focus[]>(guess.focus);
-  const [domains, setDomains] = useState<Domain[]>(guess.domains);
-  const [type, setType] = useState<WishType>();
-  const logged = useRef(false);
-  useEffect(() => { if (!logged.current) { logged.current = true; onGuess(guess); } }, [guess, onGuess]);
-  const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  const sounds = [...focus.map((f) => FOCUS_LABEL[f]), ...domains.map((d) => DOMAIN_LABEL[d])];
-  return (
-    <Page onStartOver={onStartOver}>
-      <WishTile text={wishText} />
-      <Heading title="Does this sound right?" sub={guess.focus.length || guess.domains.length ? `Sounds like: ${sounds.join(" · ")}. Change anything that's off.` : "We couldn't tell from that. Pick what fits."} />
-      <section className="flex flex-col gap-2.5" aria-labelledby="dom">
-        <h2 id="dom" className="m-0 text-base font-extrabold">Area</h2>
-        <div className="flex flex-wrap gap-2">{DOMAINS.map((d) => <Chip key={d} selected={domains.includes(d)} onClick={() => setDomains(toggle(domains, d))}>{DOMAIN_LABEL[d]}</Chip>)}</div>
-      </section>
-      <section className="flex flex-col gap-2.5" aria-labelledby="foc">
-        <h2 id="foc" className="m-0 text-base font-extrabold">What kind of wish</h2>
-        <div className="flex flex-wrap gap-2">{FOCUSES.map((f) => <Chip key={f} selected={focus.includes(f)} title={focusHelp[f]} onClick={() => setFocus(toggle(focus, f))}>{FOCUS_LABEL[f]}<span className="sr-only">: {focusHelp[f]}</span></Chip>)}</div>
-        <p className="m-0 text-[13px] text-muted">Learn: understand something · Goal: hit a target · System: build a routine · Advance: ship or level up · Lead: guide others · Connect: meet people</p>
-      </section>
-      <section className="flex flex-col gap-2.5" aria-labelledby="fin">
-        <h2 id="fin" className="m-0 text-base font-extrabold">Is there a clear finish line?</h2>
-        <Choice label="Finish line" value={type} onChange={setType} options={[{ v: "fixed", label: "Yes" }, { v: "open_ended", label: "Not really" }]} />
-      </section>
-      <PrimaryButton disabled={!type || !focus.length || !domains.length} onClick={() => onConfirm({ focus, domains, type: type!, guess })}>Continue</PrimaryButton>
-    </Page>
   );
 }
 

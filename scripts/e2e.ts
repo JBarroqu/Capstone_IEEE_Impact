@@ -28,8 +28,7 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Connect in the healthcare industry" }).click(); await shot("2-intake");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Yes", exact: true }).click(); await shot("3-classify");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("A bit of context").waitFor();
   await page.getByRole("button", { name: "Continue" }).click(); // why/prior, leave empty
   for (let i = 0; i < 3; i++) { await page.locator("main button").nth(i === 0 ? 1 : 1).waitFor(); await shot(`4-quiz${i}`); await page.locator("main button:not([aria-label])").filter({ hasText: /./ }).nth(1).click(); }
 
