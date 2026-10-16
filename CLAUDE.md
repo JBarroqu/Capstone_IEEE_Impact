@@ -11,7 +11,7 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - Content is pitched at senior ASU CS majors. No emoji, no "AI"/"smart" wording, say "moves"/"options".
 
 ## Commands
-`npm run dev` · `npm test` (vitest, no live LLM calls) · `npm run typecheck` · `npm run db:push` · `npm run seed` (validates data/*.json) · `npm run llm:check [wish]` · `npx tsx scripts/e2e.ts` (browser smoke test, needs dev server + Chrome; `BASE_URL=` for another port) · `docker compose up -d --build` (app + own Postgres on :3010; `output: "standalone"` in next.config is for the image)
+`npm run dev` · `npm test` (vitest, no live LLM calls) · `npm run typecheck` · `npm run db:push` · `npm run seed` (validates data/*.json) · `npm run llm:check [wish]` · `npx tsx scripts/e2e.ts` (browser smoke test, needs dev server + Chrome; `BASE_URL=` for another port) · `docker compose up -d --build` (app + own Postgres on :3010; standalone output is enabled only via NEXT_STANDALONE=1 in the Dockerfile)
 
 ## Layout
 - `data/` moves.json (catalog, generated from a compact script, edit JSON directly), wishes.json, keywords.json

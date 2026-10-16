@@ -8,7 +8,7 @@ RUN npm ci
 # Full toolchain; also used by the compose "migrate" service (drizzle-kit push).
 FROM deps AS build
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_STANDALONE=1
 RUN npm run build
 
 FROM node:22-alpine AS runner
