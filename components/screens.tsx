@@ -5,7 +5,7 @@ import { wishes as wishCatalog } from "@/lib/engine/catalog";
 import { quiz, archetypeInfo } from "@/lib/archetypes";
 import type { Archetype, PriorAttempts } from "@/lib/types";
 
-export function Welcome({ provider, copy, initialName, onContinue }: { provider: string; copy: { intro: string; gemini: string; local: string }; initialName: string; onContinue: (name: string) => void }) {
+export function Welcome({ copy, initialName, onContinue }: { copy: { intro: string; data: string }; initialName: string; onContinue: (name: string) => void }) {
   const [ok, setOk] = useState(false);
   const [name, setName] = useState(initialName);
   return (
@@ -14,7 +14,7 @@ export function Welcome({ provider, copy, initialName, onContinue }: { provider:
       <HeroBody>
         <div className="-mt-8 flex flex-col gap-4 rounded-[14px] border border-line2 bg-white p-5 shadow-[0_8px_24px_rgba(0,40,85,0.12)]">
           <p className="m-0 text-[15px] leading-[1.5]">{copy.intro}</p>
-          <p className="m-0 text-[15px] leading-[1.5]">{provider === "gemini" ? copy.gemini : copy.local}</p>
+          <p className="m-0 text-[15px] leading-[1.5]">{copy.data}</p>
           <Field id="name" label="Your name">
             <input id="name" type="text" autoComplete="off" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="First name is fine" className="border-0 bg-transparent p-0 text-lg font-medium text-ink outline-none placeholder:text-muted/70" />
           </Field>

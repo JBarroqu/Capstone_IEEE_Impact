@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { makeLlmProvider, RateLimited, LlmUnavailable } from "@/lib/providers/llm";
+import { chainProvider, runChain, RateLimited, LlmUnavailable } from "@/lib/providers/llm";
+import { rankGeminiModels, type Backend } from "@/lib/providers/backends";
+import { Health } from "@/lib/providers/health";
+import { parseClassify } from "@/lib/prompts/classify.v1";
 import { getOptions, type Store } from "@/lib/providers";
 import { genId } from "@/lib/providers/validate";
 import { RateQueue, QueueTimeout } from "@/lib/providers/queue";
@@ -13,11 +16,17 @@ const mv = (title: string, cost: "free" | "paid" = "free") => ({
   title, detail: "Do the specific thing today.", step: 1, focus: ["goal"], domains: ["career"], minutes: 30, cost, format: "solo",
 });
 const json = (...m: ReturnType<typeof mv>[]) => JSON.stringify({ moves: m });
-const fast = { backoffMs: 0 };
-const provider = (gen: (n: number) => Promise<string>, timeout = 500, opts = {}) => {
+type Gen = (signal: AbortSignal) => Promise<string>;
+const backend = (id: string, gen: Gen): Backend => ({ id: `gemini:${id}`, provider: "gemini", model: id, remote: true, generate: (_, signal) => gen(signal) });
+const chain = (backends: Backend[], opts: { timeoutMs?: number; budgetMs?: number; fallback?: "none" | "static"; health?: Health } = {}) =>
+  chainProvider({ backends: async () => backends, preferred: async () => null, health: opts.health ?? new Health(), timeoutMs: opts.timeoutMs ?? 500, budgetMs: opts.budgetMs ?? 5000, fallback: opts.fallback });
+// One backend whose nth call returns gen(n).
+const provider = (gen: (n: number) => Promise<string>, timeout = 500, opts: { fallback?: "none" | "static" } = {}) => {
   let n = 0;
-  return makeLlmProvider("gemini", "test-model", () => gen(n++), timeout, undefined, { ...fast, ...opts });
+  return chain([backend("test-model", () => gen(n++))], { timeoutMs: timeout, ...opts });
 };
+const hang: Gen = (signal) => new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("abort"), { name: "AbortError" }))));
+const good = (p = "Ok") => json(mv(`${p} one`), mv(`${p} two`), mv(`${p} three`));
 
 describe("LLM provider", () => {
   it("valid JSON path", async () => {
@@ -28,7 +37,7 @@ describe("LLM provider", () => {
     expect(r.meta.sources).toEqual(["generated", "generated", "generated"]);
     expect(r.meta.repaired).toBe(false);
   });
-  it("malformed JSON → retry succeeds", async () => {
+  it("malformed JSON → retry on the same model succeeds", async () => {
     const r = await provider(async (n) => (n === 0 ? "not json" : json(mv("A one"), mv("B two"), mv("C three")))).getOptions(req);
     expect(r.meta.usedProvider).toBe("gemini");
     expect(r.meta.repaired).toBe(true);
@@ -66,35 +75,54 @@ describe("LLM provider", () => {
     expect(g.title.length).toBeLessThanOrEqual(60);
     expect(g.detail).toBe("First sentence.");
   });
-  it("every attempt times out → LlmUnavailable(timeout)", async () => {
-    const p = makeLlmProvider("gemini", "m", (_, signal) => new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("abort"), { name: "AbortError" })))), 30, undefined, { ...fast, attempts: 2 });
+  it("every model times out → LlmUnavailable(timeout)", async () => {
+    const p = chain([backend("a", hang), backend("b", hang)], { timeoutMs: 30 });
     await expect(p.getOptions(req)).rejects.toMatchObject({ reason: "timeout" });
   });
-  it("a hung first attempt is retried and succeeds", async () => {
-    let n = 0;
-    const p = makeLlmProvider("gemini", "m", (_, signal) => n++ === 0
-      ? new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("abort"), { name: "AbortError" }))))
-      : Promise.resolve(json(mv("Retry one"), mv("Retry two"), mv("Retry three"))), 50, undefined, fast);
-    const r = await p.getOptions(req);
-    expect(r.meta.usedProvider).toBe("gemini");
-    expect(n).toBe(2);
+  it("a hung model is skipped for the next one", async () => {
+    const r = await chain([backend("slow", hang), backend("fast", async () => good("Next"))], { timeoutMs: 50 }).getOptions(req);
+    expect(r.meta.model).toBe("fast");
+    expect(r.meta.tried).toEqual(["gemini:slow:timeout"]);
   });
-  it("transient 503s are retried up to the attempt limit", async () => {
-    let n = 0;
-    const r = await provider(async () => { if (n++ < 2) throw new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'); return json(mv("Ok one"), mv("Ok two"), mv("Ok three")); }).getOptions(req);
-    expect(n).toBe(3);
-    expect(r.meta.usedProvider).toBe("gemini");
+  it("503 on one model → next model answers, and the sick one is skipped on the next request", async () => {
+    const health = new Health();
+    let sick = 0;
+    const p = chain([backend("busy", async () => { sick++; throw new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'); }), backend("ok", async () => good())], { health });
+    expect((await p.getOptions(req)).meta.model).toBe("ok");
+    expect((await p.getOptions(req)).meta.model).toBe("ok");
+    expect(sick).toBe(1);
+    expect(health.cooling("gemini:busy")).toBe(true);
   });
-  it("rate limit (429) is retried too, then fails as rate_limited", async () => {
-    let n = 0;
-    const p = provider(async () => { n++; throw new RateLimited("429"); }, 500, { attempts: 2 });
+  it("rate limit (429) on every model → rate_limited", async () => {
+    const p = chain([backend("a", async () => { throw new RateLimited("429"); }), backend("b", async () => { throw new RateLimited("429"); })]);
     await expect(p.getOptions(req)).rejects.toMatchObject({ reason: "rate_limited" });
-    expect(n).toBe(2);
   });
-  it("non-transient error fails immediately without retrying", async () => {
-    let n = 0;
-    await expect(provider(async () => { n++; throw new Error("API key not valid"); }).getOptions(req)).rejects.toBeInstanceOf(LlmUnavailable);
-    expect(n).toBe(1);
+  it("retired model (404) or bad key moves on and is parked for hours", async () => {
+    const health = new Health();
+    const p = chain([backend("old", async () => { throw new Error("404 models/old is not found"); }), backend("ok", async () => good())], { health });
+    expect((await p.getOptions(req)).meta.model).toBe("ok");
+    expect(health.get("gemini:old").gone).toBe(true);
+  });
+  it("invalid output twice on one model → next model", async () => {
+    const r = await chain([backend("bad", async () => "nope"), backend("ok", async () => good())]).getOptions(req);
+    expect(r.meta.model).toBe("ok");
+    expect(r.meta.tried).toEqual(["gemini:bad:invalid_json"]);
+  });
+  it("stops at the time budget even with models left", async () => {
+    const p = chain([backend("a", hang), backend("b", hang), backend("c", hang)], { timeoutMs: 400, budgetMs: 600 });
+    const t = Date.now();
+    await expect(p.getOptions(req)).rejects.toBeInstanceOf(LlmUnavailable);
+    expect(Date.now() - t).toBeLessThan(1500);
+  });
+  it("no models at all → fails loudly", async () => {
+    await expect(chain([]).getOptions(req)).rejects.toBeInstanceOf(LlmUnavailable);
+  });
+  it("preferred model goes first; cooling ones go last", () => {
+    const h = new Health();
+    const bs = ["a", "b", "c"].map((id) => ({ id }));
+    expect(h.order(bs, "c").map((b) => b.id)).toEqual(["c", "a", "b"]);
+    h.fail("a", "error", "503");
+    expect(h.order(bs, null).map((b) => b.id)).toEqual(["b", "c", "a"]);
   });
   it("id hashing is stable and normalized", () => {
     expect(genId("Do a Mock!", 1)).toBe(genId("do a  mock", 1));
@@ -111,7 +139,7 @@ describe("cache + rate queue", () => {
       persistGenerated: async () => {},
     };
     const gen = vi.fn(async () => json(mv("One a"), mv("Two b"), mv("Three c")));
-    const p = makeLlmProvider("gemini", "m", gen, 500, undefined, fast);
+    const p = chain([backend("m", gen)]);
     const a = await getOptions(req, { provider: p, store, cache: true });
     await new Promise((r) => setTimeout(r, 10));
     const b = await getOptions(req, { provider: p, store, cache: true });
@@ -123,5 +151,26 @@ describe("cache + rate queue", () => {
     const q = new RateQueue(1);
     await q.acquire(10);
     await expect(q.acquire(10)).rejects.toBeInstanceOf(QueueTimeout);
+  });
+});
+
+describe("model discovery + classification", () => {
+  it("ranks Gemini models: lite, flash, pro; stable before preview; newest first; drops non-text models", () => {
+    expect(rankGeminiModels([
+      "models/gemini-2.5-flash", "models/gemini-3.5-flash-lite", "models/gemini-3.1-flash-lite", "models/gemini-3.1-flash-lite-preview",
+      "models/gemini-3.8-flash", "models/gemini-3.8-flash-tts", "models/gemini-3.1-flash-image", "models/gemini-flash-lite-latest",
+      "models/gemini-2.5-pro", "models/gemma-3-27b-it", "models/text-embedding-004",
+    ])).toEqual([
+      "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest",
+      "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-pro",
+    ]);
+  });
+  it("classification goes through the chain and is validated", async () => {
+    const r = await runChain(
+      { schema: {}, build: () => ({ system: "", user: "" }), parse: parseClassify },
+      { backends: async () => [backend("bad", async () => '{"focus":["nope"]}'), backend("ok", async () => '{"focus":["goal","goal"],"domains":["career"],"type":"fixed"}')], preferred: async () => null, health: new Health(), timeoutMs: 500, budgetMs: 5000 },
+    );
+    expect(r.value).toEqual({ focus: ["goal"], domains: ["career"], type: "fixed" });
+    expect(r.backend.model).toBe("ok");
   });
 });

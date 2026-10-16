@@ -77,11 +77,13 @@ export type OptionsMeta = {
   errorDetail?: string;
   fallbackReason?: "timeout" | "invalid_json" | "rate_limited" | "error";
   sources: ("catalog" | "generated")[];
+  /** Models that failed before the one that answered, as "provider:model:reason". */
+  tried?: string[];
 };
 
 export type OptionsResult = { moves: Move[]; meta: OptionsMeta };
 
 export interface MoveProvider {
-  name: "static" | "ollama" | "gemini";
+  name: "static" | "ollama" | "gemini" | "auto";
   getOptions(req: OptionsRequest): Promise<OptionsResult>;
 }

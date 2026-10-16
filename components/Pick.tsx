@@ -54,7 +54,7 @@ export function Pick({ step, totalSteps, wishText, chosen, load, onLocked, onSki
       track("options_shown", {
         move_ids: res.moves.map((m) => m.id), reroll_index: reroll, relaxed: meta.relaxed, sources: meta.sources,
         requested_provider: meta.requestedProvider, used_provider: meta.usedProvider, model: meta.model ?? null,
-        prompt_version: meta.promptVersion ?? null, latency_ms: meta.latencyMs, cache_hit: meta.cacheHit, repaired: meta.repaired,
+        prompt_version: meta.promptVersion ?? null, latency_ms: meta.latencyMs, cache_hit: meta.cacheHit, repaired: meta.repaired, tried: meta.tried ?? [],
       }, step);
       if (meta.fallbackReason) track("provider_fallback", { requested_provider: meta.requestedProvider, reason: meta.fallbackReason }, step);
       if (meta.relaxed) track("options_relaxed", { reroll_index: reroll }, step);

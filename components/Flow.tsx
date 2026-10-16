@@ -4,9 +4,8 @@ import { Intake, Interstitial, Quiz, Thanks, Welcome, WhyPrior } from "./screens
 import { Pick, type LoadOptions } from "./Pick";
 import { Summary, type FeedbackAnswers } from "./Summary";
 import { flush, setConsent, setTrackContext, track } from "@/lib/track";
-import { fetchOptions, postJson, saveWish } from "@/lib/client-api";
+import { classify, fetchOptions, postJson, saveWish } from "@/lib/client-api";
 import { assignArchetype } from "@/lib/archetypes";
-import { classifyWish } from "@/lib/engine/classify";
 import { uuid } from "@/lib/uuid";
 import type { Archetype, Domain, Focus, Move, PriorAttempts, WishContext, WishType } from "@/lib/types";
 
@@ -17,7 +16,7 @@ type Session = { sessionId: string; participantCode: string };
 const blankWish = (): Wish => ({ id: uuid(), text: "", type: "open_ended", focus: [], domains: [], prior: { chips: [] } });
 const MAX_STEPS = 5;
 
-export default function Flow({ provider, consentCopy }: { provider: string; consentCopy: { intro: string; gemini: string; local: string } }) {
+export default function Flow({ consentCopy }: { consentCopy: { intro: string; data: string } }) {
   // ?p=NAME (optional) prefills the name box; participants can still edit it.
   const [initialName] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("p")?.trim().slice(0, 60) ?? ""));
   const [screen, setScreen] = useState<Screen>("welcome");
@@ -29,6 +28,9 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
   const [totalSteps, setTotalSteps] = useState(3);
   const [paidShown, setPaidShown] = useState<Move[]>([]);
   const prefetch = useRef(new Map<string, Promise<Awaited<ReturnType<typeof fetchOptions>>>>());
+  // The wish is classified in the background after submit; every move request waits for it.
+  const classified = useRef<Promise<Pick<Wish, "focus" | "domains" | "type">> | null>(null);
+  const withClass = async (w: Wish): Promise<Wish> => ({ ...w, ...(await classified.current) });
   const screenRef = useRef<Screen>("welcome");
   const go = (s: Screen) => { screenRef.current = s; setScreen(s); window.scrollTo(0, 0); };
 
@@ -43,14 +45,14 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
   const load: LoadOptions = useCallback((a) => {
     const key = `${wish.id}:${a.step}`;
     const pre = a.rerollIndex === 0 ? prefetch.current.get(key) : undefined;
-    return pre ?? fetchOptions(body(wish, a));
+    return pre ?? withClass(wish).then((w) => fetchOptions(body(w, a)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wish, session, archetype]);
 
   const startPrefetch = (nextStep: number, chosen: Move[]) => {
     if (nextStep > MAX_STEPS) return;
     const a = { step: nextStep, chosen, excludeIds: [], rerollIndex: 0 };
-    const p = fetchOptions(body(wish, a));
+    const p = withClass(wish).then((w) => fetchOptions(body(w, a)));
     p.catch(() => prefetch.current.delete(`${wish.id}:${nextStep}`));
     prefetch.current.set(`${wish.id}:${nextStep}`, p);
   };
@@ -79,7 +81,7 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
   const startOverWish = (logEvent: boolean) => {
     if (logEvent) track("start_over", { last_screen: screenRef.current });
     const w = blankWish();
-    setWish(w); setPath([]); setStep(1); setTotalSteps(3); setPaidShown([]); prefetch.current.clear();
+    setWish(w); setPath([]); setStep(1); setTotalSteps(3); setPaidShown([]); prefetch.current.clear(); classified.current = null;
     if (session) setTrackContext({ ...session, wishId: w.id });
     go("intake");
   };
@@ -111,16 +113,19 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
 
   return (
     <main>
-      {screen === "welcome" && <Welcome provider={provider} copy={consentCopy} initialName={initialName} onContinue={begin} />}
+      {screen === "welcome" && <Welcome copy={consentCopy} initialName={initialName} onContinue={begin} />}
       {screen === "intake" && (
         <Intake initial={wish.text} onStartOver={() => startOverWish(true)} onSubmit={(text, fromChip) => {
-          // Classified silently (no confirmation screen); stored for analytics and used to steer the moves.
-          const g = classifyWish(text);
-          const type = g.focus.includes("goal") ? "fixed" : "open_ended";
-          setWish((w) => ({ ...w, text, focus: g.focus, domains: g.domains, type }));
+          setWish((w) => ({ ...w, text }));
           track("wish_submitted", { text, from_chip: fromChip });
-          track("classification_guessed", { focus: g.focus, domains: g.domains, confidence: g.confidence, type });
-          saveWish({ id: wish.id, sessionId: session!.sessionId, text, fromChip, guessedFocus: g.focus, guessedDomains: g.domains, focus: g.focus, domains: g.domains, type });
+          saveWish({ id: wish.id, sessionId: session!.sessionId, text, fromChip });
+          // Classified by the model chain while the student answers the next screens; never shown to them.
+          classified.current = classify(text).then((c) => {
+            track("classification_guessed", c.log);
+            setWish((w) => (w.id === wish.id ? { ...w, ...c.wish } : w));
+            saveWish({ id: wish.id, sessionId: session!.sessionId, guessedFocus: c.wish.focus, guessedDomains: c.wish.domains, ...c.wish });
+            return c.wish;
+          });
           go("why");
         }} />
       )}
@@ -141,9 +146,8 @@ export default function Flow({ provider, consentCopy }: { provider: string; cons
             setArchetype(a);
             saveWish({ id: wish.id, sessionId: session!.sessionId, archetype: a });
             // prefetch move 1 with the archetype now known
-            const c: WishContext = { ...ctx(wish, []), archetype: a };
             const key = `${wish.id}:1`;
-            const p = fetchOptions({ sessionId: session?.sessionId, wishId: wish.id, step: 1, rerollIndex: 0, excludeIds: [], ctx: c });
+            const p = withClass(wish).then((w) => fetchOptions({ sessionId: session?.sessionId, wishId: w.id, step: 1, rerollIndex: 0, excludeIds: [], ctx: { ...ctx(w, []), archetype: a } }));
             p.catch(() => prefetch.current.delete(key));
             prefetch.current.set(key, p);
             go("pick");

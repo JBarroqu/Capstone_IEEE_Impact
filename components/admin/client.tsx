@@ -56,3 +56,48 @@ export function Moderator() {
     </div>
   );
 }
+
+export type ModelRow = { id: string; status: "ok" | "untested" | "cooling" | "gone"; note: string };
+
+export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: string | null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+  const post = async (body: object, label: string) => {
+    setBusy(label); setMsg("");
+    const r = await fetch("/api/admin/models", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => null);
+    setBusy(null);
+    if (!r?.ok) setMsg("Request failed.");
+    else if (r.results) setMsg(`${r.results.filter((x: { ok: boolean }) => x.ok).length} of ${r.results.length} models answered.`);
+    else if (typeof r.count === "number") setMsg(`Found ${r.count} models.`);
+    router.refresh();
+  };
+  const pill = { ok: "bg-ok-bg text-ok", untested: "bg-chip text-muted", cooling: "bg-warn-bg text-warn", gone: "bg-[#FBE9E7] text-[#B3261E]" };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-[13px] font-bold text-blue-dark">Try first
+          <select value={preferred ?? ""} disabled={!!busy} onChange={(e) => post({ action: "prefer", id: e.target.value || null }, "prefer")} className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm font-medium text-ink">
+            <option value="">Automatic order</option>
+            {rows.map((r) => <option key={r.id} value={r.id}>{r.id}</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={!!busy} onClick={() => post({ action: "test" }, "test")} className="min-h-[44px] rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark disabled:opacity-50">{busy === "test" ? "Testing..." : "Test all"}</button>
+        <button type="button" disabled={!!busy} onClick={() => post({ action: "refresh" }, "refresh")} className="min-h-[44px] rounded-full bg-chip px-4 text-sm font-bold hover:bg-tint disabled:opacity-50">{busy === "refresh" ? "Looking..." : "Re-discover models"}</button>
+        {msg && <span role="status" className="text-sm font-semibold text-muted">{msg}</span>}
+      </div>
+      {rows.length === 0 ? <p className="m-0 text-[#B3261E]">No models available. Set GEMINI_API_KEY (or GROQ_API_KEY / OPENROUTER_API_KEY), or start Ollama.</p> : (
+        <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+          {rows.map((r, i) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line2 px-3 py-2 text-sm">
+              <span className="w-5 text-right font-bold tabular-nums text-muted">{i + 1}</span>
+              <b className="min-w-[260px]">{r.id}{r.id === preferred ? " (first)" : ""}</b>
+              <span className={`rounded-full px-[9px] py-[3px] text-xs font-bold ${pill[r.status]}`}>{r.status}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-muted" title={r.note}>{r.note}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}

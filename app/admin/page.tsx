@@ -2,7 +2,10 @@ import { Fragment } from "react";
 import { isAdmin } from "@/lib/admin-auth";
 import { loadData, parseFilters, type Filters } from "@/lib/admin-data";
 import { feedback, funnel, groupBy, journeys, keyNumbers, leaderboard, rejectReasons, type Journey, type MoveMeta, type Round } from "@/lib/analytics";
-import { AdminLogin, CopyJson, Moderator } from "@/components/admin/client";
+import { AdminLogin, CopyJson, Moderator, Models, type ModelRow } from "@/components/admin/client";
+import { getBackends } from "@/lib/providers/backends";
+import { health } from "@/lib/providers/health";
+import { getPreferredBackend } from "@/lib/providers/prefs";
 import { Tag } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -108,6 +111,22 @@ function JourneyCard({ j, label, showName, meta }: { j: Journey; label: string; 
   );
 }
 
+const ago = (t?: number) => (t == null ? "" : `${Math.max(0, Math.round((Date.now() - t) / 60_000))} min ago`);
+
+async function modelRows(): Promise<{ rows: ModelRow[]; preferred: string | null }> {
+  const [backends, preferred] = await Promise.all([getBackends().catch(() => []), getPreferredBackend().catch(() => null)]);
+  const ordered = health.order(backends, preferred);
+  const rows = ordered.map((b): ModelRow => {
+    const h = health.get(b.id);
+    const status = h.gone ? "gone" : health.cooling(b.id) ? "cooling" : h.lastOkAt ? "ok" : "untested";
+    const note = status === "ok" ? `answered ${ago(h.lastOkAt)} in ${h.lastLatencyMs} ms`
+      : status === "untested" ? "not called yet"
+      : `${h.lastError ?? ""} · retry in ${Math.max(1, Math.round((h.coolUntil - Date.now()) / 60_000))} min`;
+    return { id: b.id, status, note };
+  });
+  return { rows, preferred };
+}
+
 function qs(f: Filters, extra: Record<string, string>) {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries({ ...f, ...extra })) if (v) p.set(k, v);
@@ -130,6 +149,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
   const labelOf = new Map(sessions.map((x, i) => [x.id, `P${i + 1}`]));
   const names = [...new Map(sessions.map((x) => [x.participant, labelOf.get(x.id)!])).entries()];
   const js = journeys(events, wishes);
+  const models = await modelRows();
+  const shown = events.filter((e) => e.name === "options_shown" && !e.payload.cache_hit);
+  const usage = groupBy(shown, (e) => `${e.payload.used_provider ?? "?"}:${e.payload.model ?? "?"}`, (ev) => ({
+    n: ev.length,
+    median: [...ev.map((e) => Number(e.payload.latency_ms)).filter((n) => !isNaN(n))].sort((a, b) => a - b)[Math.floor(ev.length / 2)] ?? null,
+    failover: ev.filter((e) => (e.payload.tried as string[] | undefined)?.length).length,
+  }));
+  const classSrc = tally(events.filter((e) => e.name === "classification_guessed").map((e) => String(e.payload.source ?? "keywords (old)")));
+  const failedLoads = events.filter((e) => e.name === "options_failed").length;
   const fn = funnel(events);
   const max = Math.max(1, fn[0].n);
   const lb = leaderboard(events, meta);
@@ -173,7 +201,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
         {!showNames && <input type="hidden" name="names" value="hide" />}
         <label className="flex flex-col gap-1 text-[13px] font-bold text-blue-dark">Provider
           <select name="provider" defaultValue={f.provider ?? ""} className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm font-medium text-ink">
-            <option value="">All</option><option value="static">static</option><option value="ollama">ollama</option><option value="gemini">gemini</option>
+            <option value="">All</option><option value="auto">auto</option><option value="gemini">gemini</option><option value="ollama">ollama</option><option value="static">static</option>
           </select>
         </label>
         <button className="min-h-[44px] rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark">Apply</button>
@@ -190,6 +218,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
             {js.map((j) => <JourneyCard key={j.sessionId} j={j} label={labelOf.get(j.sessionId) ?? "P?"} showName={showNames} meta={meta} />)}
           </div>
         )}
+      </Section>
+
+      <Section title="Models">
+        <Models rows={models.rows} preferred={models.preferred} />
+        <p className="mt-2 text-[13px] text-muted">Every request walks this list top to bottom. A model that errors or times out is skipped for 1 to 10 minutes (hours if it was retired or the key was rejected), so students don&apos;t wait on it. Status is since the server started. &quot;Try first&quot; is saved and survives restarts.</p>
       </Section>
 
       <Section title="Export CSV">
@@ -224,6 +257,19 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
           </Table>
         )}
         <p className="mt-2 text-[13px] text-muted">Rows come from each event&apos;s provider. LLM failed = option requests where the LLM never produced valid moves (student saw a retry prompt). Static fallback only happens if LLM_FALLBACK=static.</p>
+      </Section>
+
+      <Section title="Model usage">
+        {Object.keys(usage).length === 0 && failedLoads === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
+          <Table>
+            <thead><tr><Th>Model that answered</Th><Th>Option sets</Th><Th>Median ms</Th><Th>After a failover</Th></tr></thead>
+            <tbody>
+              {Object.entries(usage).map(([k, v]) => <tr key={k}><Td><b>{k}</b></Td><Td right>{v.n}</Td><Td right>{dash(v.median)}</Td><Td right>{v.failover}</Td></tr>)}
+              <tr><Td>Failed (student saw retry)</Td><Td right>{failedLoads}</Td><Td /><Td /></tr>
+            </tbody>
+          </Table>
+        )}
+        <p className="mt-2 text-[13px] text-muted">Classified by: {split(classSrc)}. &quot;llm&quot; = a model categorized the wish; &quot;keywords&quot; = every model failed, so keyword matching did.</p>
       </Section>
 
       <Section title="Move leaderboard">
@@ -268,7 +314,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
             </tbody>
           </Table>
         )}
-        <p className="mt-2 text-[13px] text-muted">Classified automatically from the wish text by keyword matching; students do not see or confirm it. Wishes with no matching keywords count toward no area or kind.</p>
+        <p className="mt-2 text-[13px] text-muted">Classified automatically from the wish text by a model (keyword matching only if every model failed); students do not see or confirm it.</p>
       </Section>
 
       <Section title="Feedback">

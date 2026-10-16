@@ -61,7 +61,7 @@ Desktop/laptop-first (design at ~1280px wide, a centered content column of ~640�
    - Continue.
 
 3. **Classify (student confirms)**
-   - **UPDATE (2026-10-15): no confirmation screen.** The wish is classified silently on submit (keywords → focus/domain; type = `fixed` if focus includes goal, else `open_ended`), saved to the wish row and logged as `classification_guessed`. `classification_confirmed` is no longer emitted. The bullets below are superseded.
+   - **UPDATE (2026-10-15): no confirmation screen.** The wish is classified by the model chain in the background on submit (focus, domain, type), saved to the wish row and logged as `classification_guessed` with its source; keywords are used only if every model fails. `classification_confirmed` is no longer emitted. The bullets below are superseded.
    - The engine guesses **domain** and **focus** from keywords (Section 4) and shows them as pre-selected chips: "Sounds like: *Connect* · *Leadership & Network*. Right?"
    - Student can change the selection. Log both the guess and the final answer (this measures classifier accuracy).
    - Also ask type: "Is there a clear finish line?" Yes → `fixed`, Not really → `open_ended`.
@@ -148,7 +148,7 @@ The LLM writes options tailored to the student's exact wish, why, prior attempts
 1. Parse; on failure, retry once with the validation error appended. Still failing → the request fails (student sees a retry prompt; `options_failed` is logged). **Do not substitute static moves** unless `LLM_FALLBACK=static`.
 2. Enforce the free/paid rule in code, not just in the prompt: if the model returns 2+ paid, drop the extras and, if that leaves fewer than 3 moves, ask the model again (no catalog backfill).
 3. Enforce length limits (title ≤ 60 chars, detail one sentence) by truncation, and reject any move whose title is a near-duplicate (normalized-text match) of something already shown at this step.
-4. Timeout (`LLM_TIMEOUT_MS`, per attempt, default 25000) and up to `LLM_ATTEMPTS` (default 3) tries with backoff on timeout / 503 / 429. Never fall back to static moves silently.
+4. **UPDATE (2026-10-15):** model chain with failover. Per call `LLM_TIMEOUT_MS` (default 12000); a failing model is put on cooldown and the next one is tried; the request fails after every model failed or `LLM_BUDGET_MS` (default 60000). Never fall back to static moves silently.
 
 **Stable ids for analytics.** Store every generated move in a `generated_moves` table (`id`, `session_id`, `wish_id`, `step`, the full `Move` JSON, `provider`, `model`, `prompt_version`, `created_at`). Id = `gen-` + short hash of normalized title + step, so the same move generated twice shares an id and the leaderboard can aggregate it. Catalog moves keep their slugs. The leaderboard must show both kinds, with a `source` column (`catalog` / `generated`).
 

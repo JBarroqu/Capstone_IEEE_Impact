@@ -4,25 +4,16 @@ import { config } from "../config";
 import { PROMPT_VERSION } from "../prompts/moves.v2";
 import { staticGetOptions, normalizeTitle } from "../engine/select";
 import type { Move, MoveProvider, OptionsRequest, OptionsResult } from "../types";
-import { ollamaProvider } from "./ollama";
-import { geminiProvider } from "./gemini";
-import { LlmUnavailable } from "./llm";
+import { chainProvider } from "./llm";
 
 export const staticProvider: MoveProvider = {
   name: "static",
   async getOptions(req) { return staticGetOptions(req); },
 };
 
-/** A misconfigured provider fails loudly; it never quietly serves static moves. */
-const brokenProvider = (name: "gemini" | "ollama", why: string): MoveProvider => ({
-  name,
-  async getOptions() { throw new LlmUnavailable("error", why); },
-});
-
+/** static = the deliberate control condition; anything else = the model chain (see backends.ts). */
 export function getProvider(name = config.provider): MoveProvider {
-  if (name === "gemini") return config.geminiKey ? geminiProvider() : brokenProvider("gemini", "GEMINI_API_KEY is not set");
-  if (name === "ollama") return ollamaProvider();
-  return staticProvider;
+  return name === "static" ? staticProvider : chainProvider();
 }
 
 export type Store = {
@@ -84,7 +75,7 @@ export async function getOptions(
         return {
           moves: hit,
           meta: {
-            requestedProvider: provider.name, usedProvider: provider.name, model: config.geminiModel,
+            requestedProvider: provider.name, usedProvider: provider.name, model: "cache",
             promptVersion: PROMPT_VERSION, latencyMs: Date.now() - t0, cacheHit: true, repaired: false,
             relaxed: false, sources: hit.map((m) => (m.id.startsWith("gen-") ? "generated" : "catalog")),
           },
