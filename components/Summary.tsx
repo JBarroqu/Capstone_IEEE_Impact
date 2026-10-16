@@ -15,7 +15,7 @@ export function Summary({ single, wishText, why, path, paidShown, onStartOver, o
   const yn = [{ v: "yes", label: "Yes" }, { v: "maybe", label: "Maybe" }, { v: "no", label: "No" }];
   return (
     <Page onStartOver={onStartOver}>
-      <Heading title={single ? "Your first move" : "Your path"} sub={single ? "A few quick questions about it." : undefined} />
+      <Heading title={single ? "Your first move" : "Your path"} sub={single ? "One quick question about it." : undefined} />
       <WishTile text={wishText} />
       {why && <WishTile label="Why" text={why} />}
       {path.length ? (
@@ -39,21 +39,23 @@ export function Summary({ single, wishText, why, path, paidShown, onStartOver, o
         <Choice label="Rating from 1 to 5" value={rating} onChange={setRating} options={[1, 2, 3, 4, 5].map((n) => ({ v: n, label: String(n) }))} />
         <p className="m-0 text-[13px] text-muted">1 = not useful, 5 = very useful</p>
       </section>
-      {path[0] && (
+      {!single && path[0] && (
         <section className="flex flex-col gap-2.5" aria-labelledby="f2">
           <h2 id="f2" className="m-0 text-base font-extrabold">{single ? "Would you actually do it this week?" : "Would you actually do move 1 this week?"}</h2>
           <Choice label="Would do move 1 this week" value={week} onChange={setWeek} options={yn} />
         </section>
       )}
-      {paidShown.map((m) => (
+      {!single && paidShown.map((m) => (
         <section key={m.id} className="flex flex-col gap-2.5" aria-label={`Would you pay for ${m.title}`}>
           <h2 className="m-0 text-base font-extrabold">Would you pay for &ldquo;{m.title}&rdquo;?</h2>
           <Choice label={`Would pay for ${m.title}`} value={paid[m.id]} onChange={(v) => setPaid({ ...paid, [m.id]: v })} options={yn} />
         </section>
       ))}
-      <Field id="open" label={single ? "What would make this move more useful? (optional)" : "Anything confusing or missing? (optional)"}>
-        <textarea id="open" rows={3} maxLength={1000} value={open} onChange={(e) => setOpen(e.target.value)} className={textareaCls} />
-      </Field>
+      {!single && (
+        <Field id="open" label="Anything confusing or missing? (optional)">
+          <textarea id="open" rows={3} maxLength={1000} value={open} onChange={(e) => setOpen(e.target.value)} className={textareaCls} />
+        </Field>
+      )}
       <PrimaryButton disabled={!rating} onClick={() => onSubmit({ rating: rating!, doThisWeek: week, paid, open: open.trim() || undefined })}>Submit</PrimaryButton>
     </Page>
   );

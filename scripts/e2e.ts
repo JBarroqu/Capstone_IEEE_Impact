@@ -53,9 +53,11 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
   if (total > 1) await page.getByRole("button", { name: "I'm done" }).click();
   await shot("8-summary");
   await page.getByRole("button", { name: "4", exact: true }).click();
-  await page.getByRole("button", { name: "Yes", exact: true }).first().click();
-  for (const b of await page.getByRole("button", { name: "Maybe" }).all().then((x) => x.slice(1))) await b.click();
-  await page.getByLabel(/Anything confusing|more useful/).fill("Looks good");
+  if (total > 1) {
+    await page.getByRole("button", { name: "Yes", exact: true }).first().click();
+    for (const b of await page.getByRole("button", { name: "Maybe" }).all().then((x) => x.slice(1))) await b.click();
+    await page.getByLabel(/Anything confusing/).fill("Looks good");
+  }
   await page.getByRole("button", { name: "Submit" }).click();
   await page.getByText("Try another wish").waitFor(); await shot("9-thanks");
   await page.waitForTimeout(2000);
