@@ -1,5 +1,7 @@
 # Wish Engine prototype
 
+Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`.
+
 User-testing prototype: shows students 3 move options per step for a "wish", logs every pick/skip/reject, collects feedback. Source of truth for requirements: `docs/PROMPT.md` (note its UPDATE notes: laptop-first, Gemini default, single design in /design, no themes).
 
 ## Rules

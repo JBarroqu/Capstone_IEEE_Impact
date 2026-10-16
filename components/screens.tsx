@@ -85,7 +85,7 @@ export function WhyPrior({ wishText, onStartOver, onDone }: { wishText: string; 
   );
 }
 
-export function Quiz({ onStartOver, onAnswer, onDone }: { onStartOver: () => void; onAnswer: (q: string, a: string) => void; onDone: (answers: Record<string, string>) => void }) {
+export function Quiz({ onStartOver, onAnswer, onDone, onSkip }: { onStartOver: () => void; onAnswer: (q: string, a: string) => void; onDone: (answers: Record<string, string>) => void; onSkip: (answers: Record<string, string>) => void }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const q = quiz[i];
@@ -110,6 +110,7 @@ export function Quiz({ onStartOver, onAnswer, onDone }: { onStartOver: () => voi
           </button>
         ))}
       </div>
+      <TextButton className="mt-auto self-center text-center" onClick={() => onSkip(answers)}>Skip these questions</TextButton>
     </Page>
   );
 }

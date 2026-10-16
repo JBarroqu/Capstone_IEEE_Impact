@@ -107,6 +107,19 @@ export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro:
     go("pick");
   };
   const addMore = () => { const next = step + 1; setTotalSteps(Math.max(totalSteps, 5)); setStep(next); startPrefetch(next, path); go("pick"); };
+  const quizDone = (a: Archetype | undefined, answers: Record<string, string>) => {
+    if (a) {
+      track("archetype_assigned", { archetype: a, answers });
+      setArchetype(a);
+      saveWish({ id: wish.id, sessionId: session!.sessionId, archetype: a });
+    }
+    // prefetch move 1 with the archetype now known
+    const key = `${wish.id}:1`;
+    const p = withClass(wish).then((w) => fetchOptions({ sessionId: session?.sessionId, wishId: w.id, step: 1, rerollIndex: 0, excludeIds: [], ctx: { ...ctx(w, []), archetype: a } }));
+    p.catch(() => prefetch.current.delete(key));
+    prefetch.current.set(key, p);
+    go("pick");
+  };
   const finish = (chosen: Move[]) => {
     track("path_completed", { move_ids: chosen.map((m) => m.id) });
     go("summary");
@@ -141,17 +154,12 @@ export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro:
       )}
       {screen === "quiz" && (
         <Quiz onStartOver={() => startOverWish(true)} onAnswer={(q, a) => track("quiz_answered", { q, answer: a })}
-          onDone={(answers) => {
-            const a = assignArchetype(answers);
-            track("archetype_assigned", { archetype: a, answers });
-            setArchetype(a);
-            saveWish({ id: wish.id, sessionId: session!.sessionId, archetype: a });
-            // prefetch move 1 with the archetype now known
-            const key = `${wish.id}:1`;
-            const p = withClass(wish).then((w) => fetchOptions({ sessionId: session?.sessionId, wishId: w.id, step: 1, rerollIndex: 0, excludeIds: [], ctx: { ...ctx(w, []), archetype: a } }));
-            p.catch(() => prefetch.current.delete(key));
-            prefetch.current.set(key, p);
-            go("pick");
+          onDone={(answers) => quizDone(assignArchetype(answers), answers)}
+          onSkip={(answers) => {
+            // Partial answers still give an archetype; skipping all three leaves it unset (moves are generated without it).
+            const n = Object.keys(answers).length;
+            track("quiz_skipped", { answered: n });
+            quizDone(n ? assignArchetype(answers) : undefined, answers);
           }} />
       )}
       {screen === "pick" && (
