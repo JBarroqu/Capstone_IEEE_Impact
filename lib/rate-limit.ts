@@ -34,6 +34,10 @@ const MIN = 60_000;
  * real work where the body carries a sessionId. Login is strict to slow password guessing.
  */
 export const rules = {
+  // Global ceilings hold even if a client fakes its IP; set above what a full lab session needs.
+  optionsAll: { name: "options:all", limit: 300, windowMs: MIN },
+  classifyAll: { name: "classify:all", limit: 200, windowMs: MIN },
+  sessionAll: { name: "session:all", limit: 120, windowMs: MIN },
   optionsSession: { name: "options:s", limit: 20, windowMs: MIN },
   optionsIp: { name: "options:ip", limit: 120, windowMs: MIN },
   classifyIp: { name: "classify:ip", limit: 60, windowMs: MIN },
@@ -49,8 +53,9 @@ const g = globalThis as unknown as { _rateLimiter?: RateLimiter };
 export const limiter = (g._rateLimiter ??= new RateLimiter());
 
 /**
- * First X-Forwarded-For hop, else X-Real-IP. Only trustworthy behind a proxy that overwrites these headers; when the
- * app is reached directly a client can send its own, which is why per-session limits back the IP ones up.
+ * First X-Forwarded-For hop, else X-Real-IP. Next only fills X-Forwarded-For in when the client sent none, so this is
+ * trustworthy only behind a proxy that overwrites it (Caddy in docker compose does). Reached directly, a client can
+ * fake it; the signed session cookie and the global ceilings still hold then.
  */
 export function clientIp(req: Request) {
   const xff = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();

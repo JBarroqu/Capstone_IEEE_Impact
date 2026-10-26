@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientIp, limited, rules } from "@/lib/rate-limit";
+import { readJson } from "@/lib/request";
+import { currentSession } from "@/lib/session-auth";
 import { z } from "zod";
 import { config } from "@/lib/config";
 import { classifyWish } from "@/lib/engine/classify";
@@ -15,8 +17,12 @@ const body = z.object({ wishText: z.string().min(1).max(500) });
 export async function POST(req: Request) {
   const rl = limited([rules.classifyIp, clientIp(req)]);
   if (rl) return rl;
-  const p = body.safeParse(await req.json().catch(() => null));
+  const p = body.safeParse(await readJson(req, 4096));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ ok: false, reason: "no_session" }, { status: 401 });
+  const s = limited([rules.optionsSession, session], [rules.classifyAll, "all"]);
+  if (s) return s;
   const text = p.data.wishText;
   const t0 = Date.now();
   if (config.provider !== "static") {

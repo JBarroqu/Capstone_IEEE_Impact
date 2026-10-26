@@ -1,100 +1,61 @@
 # Security and reliability
 
-What is in place, and the known gaps, roughly ordered by how likely they are to hurt a user-testing session. "Fix" lines are suggestions, not done unless marked.
+What protects the app, and what is left. Last reviewed 2026-10-26. The Gemini free tier is kept on purpose; its limits are listed under "Accepted".
 
-## In place
+## How a request is checked
 
-- **Rate limiting** (`lib/rate-limit.ts`): in-memory token buckets, applied at the top of each API route. A refused request gets `429 {ok:false, reason:"rate_limited", retry_after_s}` and a `Retry-After` header. On `/api/options` the client already shows the retry screen and logs `options_failed{reason:"rate_limited"}`. Turn it off with `RATE_LIMIT=false` (load tests only).
+1. **Caddy** (docker compose) is the only thing that can reach the app. It replaces any `X-Forwarded-For` the client sent with the real address. Students use `http://HOST:3010`, admin uses `https://HOST:3443` (Caddy's own certificate, accept the warning once). Set `LAN_HOST` in `.env` to the Mac's LAN IP.
+2. **Rate limits** (`lib/rate-limit.ts`): token buckets per IP, per session and globally. An over-limit request gets `429 {reason:"rate_limited", retry_after_s}` plus `Retry-After`.
+3. **Body size cap** (`lib/request.ts` `readJson`): 1–64 KB depending on the route, checked before parsing. All arrays and strings in the Zod schemas have a `.max()`.
+4. **Signed session cookie** (`lib/session-auth.ts`): `/api/session` (after consent) sets `wish_sess = sessionId.issuedAt.HMAC`. `/api/options`, `/api/classify`, `/api/wish` and `/api/events` refuse requests without it (401), and refuse a body `sessionId` that doesn't match it. A wish can only be updated by the session that created it.
+5. **Signing key** (`lib/secret.ts`): `SESSION_SECRET`, or a random key created once and kept in the `settings` table, so cookies survive restarts.
 
-  | Route | Per IP | Per session |
-  |---|---|---|
-  | `/api/options` (LLM) | 120/min | 20/min |
-  | `/api/classify` (LLM) | 60/min | – (body has no sessionId) |
-  | `/api/events` | 600/min | 60 batches/min |
-  | `/api/wish` | 300/min | – |
-  | `/api/session` | 30/min | – |
-  | `/api/admin/login` | 10 per 15 min | – |
-  | `/api/admin/models` (pings every model) | 6/min | – |
+| Route | Per IP | Per session | Global |
+|---|---|---|---|
+| `/api/options` (models) | 120/min | 20/min | 300/min |
+| `/api/classify` (models) | 60/min | shares the 20/min | 200/min |
+| `/api/events` | 600/min | 60 batches/min | – |
+| `/api/wish` | 300/min | cookie required | – |
+| `/api/session` | 30/min | – | 120/min |
+| `/api/admin/login` | 10 per 15 min | – | – |
+| `/api/admin/models` | 6/min | – | – |
 
-  The per-IP limits are loose on purpose: a lab of students on campus Wi-Fi can all share one NAT address. The per-session limits do most of the work.
-- Upstream model quotas: `RateQueue` (`lib/providers/queue.ts`) caps each Gemini model at `GEMINI_RPM` (default 9/min). `Health` puts failing or 429ing models on cooldown so the chain skips them.
-- Zod validation on every request body. Text fields are capped at 500–1000 characters.
-- Admin password check uses `timingSafeEqual`. The cookie is httpOnly and `SameSite=Lax`, and `Secure` over HTTPS.
-- React escapes all model output, so a generated move cannot inject HTML.
+Per-IP limits are loose because a lab can share one campus NAT address. The global limits still hold if someone fakes IPs (for example on `npm run dev:lan`, where there is no Caddy).
 
-## Security gaps
+## Fixed (2026-10-26)
 
-### 1. Rate limits can be bypassed when the app is exposed directly
-The IP comes from `X-Forwarded-For`, which a client can set itself unless a proxy in front overwrites it. Per-session limits can be dodged too, since the client picks its own `sessionId`. Someone with a script could still use up the Gemini quota.
-**Fix:** put Caddy, nginx or a Cloudflare Tunnel in front, configured to overwrite `X-Forwarded-For` (this also gives HTTPS, see 3). Optionally, issue a signed session token from `/api/session` and have `/api/options` require it.
+| # | Issue | Fix |
+|---|---|---|
+| 1 | IP limits bypassable by faking `X-Forwarded-For`. Next passes the client's header through, as tested. | Caddy in front, app port no longer published. Global limits, and per-session limits keyed on the signed cookie. |
+| 2 | Anyone could write sessions, wishes and events | Signed session cookie required. `/api/session` requires `consented: true` and a non-empty name. Wish updates go through `setWhere` on the owning session. |
+| 3 | Admin password in cleartext over LAN http | Admin login refused over plain http from a non-local address (403) unless `ADMIN_ALLOW_HTTP=true`. Use `https://HOST:3443`. |
+| 4 | Admin cookie never expired and was a hash of the password | `HMAC(secret, admin + password fingerprint + issuedAt)`, expiring on the server after 12 h. Changing the password signs everyone out. `SameSite=Strict`. Login refused (503) while `ADMIN_PASSWORD` is empty, `change-me` or under 8 characters. |
+| 5 | Unbounded arrays and strings in the prompt, unbounded event payloads | `.max()` on every array and string. Body caps of 1 KB (login, session), 4 KB (classify), 8 KB (wish), 32 KB (options), 64 KB (events). |
+| 6 | CSV formula injection | Text cells starting with `= + - @`, tab or CR get a leading `'`. Numbers are untouched. |
+| 7 | "Delete TEST" matched "Tester" etc. | Case-sensitive `^TEST[ _-]`. Two steps: the admin sees the count and the codes, then confirms. The delete is refused if the count changed in between, and runs in a transaction. |
+| 8 | Bad cached move sets replayed | Admin Models panel: "Clear cached moves". |
+| 9 | No security headers | CSP `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy`. No `X-Powered-By`. No HSTS, on purpose: students use http on 3010. |
+| 10 | Hard-coded DB password | `POSTGRES_PASSWORD` from `.env` (default `wish`). It only applies when the `pgdata` volume is first created. |
+| 11 | Free-tier daily quota retried every 30 s | A 429 naming a per-day quota puts that model on cooldown until midnight Pacific, when the quota resets. The chain moves on to the other models. |
+| 12 | Events and wish saves lost on any error | Events get a client uuid, and the server ignores duplicates. A failed batch goes back on the queue and retries with backoff (2 s to 60 s, newest 1000 kept). Wish saves retry 4 times. Every call waits for the session cookie first. |
+| 14 | No backups. Bare 500s on DB errors. | `npm run backup` writes `backups/*.sql.gz` (git-ignored) from the compose DB or local Postgres. The session and wish routes return 503 `reason:"db"`, and the client retries. |
 
-### 2. Anyone can write fake study data
-`/api/session`, `/api/wish` and `/api/events` take any UUIDs and any `participantCode`, with no proof that a session came from the consent screen. Junk rows go straight into analytics. `/api/wish` will also update an existing wish for anyone who knows its id. The ids are random UUIDs, so this risk is small.
-**Fix:** `/api/session` returns an HMAC-signed `{sessionId, iat}` cookie, and the write routes check that it matches the `sessionId` in the body. Before the analysis, filter out sessions that have no `consent_given` event.
+The front page no longer shows the consent text. It sits at `/terms`, linked from "By continuing you agree to the study terms" under the Get started button. Clicking Get started is logged as `consent_given`, as before.
 
-### 3. Admin login over plain HTTP on the LAN
-On `http://192.168.x.x:3010/admin` the password and the cookie travel in cleartext over shared Wi-Fi.
-**Fix:** use HTTPS (a Caddy reverse proxy, or `cloudflared tunnel`), or open admin only on localhost.
+## Accepted (not fixed, by choice)
 
-### 4. The admin cookie never really expires
-The token is `sha256("wish-admin:" + password)`. It is deterministic, has no server-side expiry, and is the same for every login. A copied cookie works until the password changes, and the 12h `maxAge` only tells the browser when to drop it.
-**Fix:** use `HMAC(secret, issuedAt)` with an expiry checked on the server, and fail at startup if `ADMIN_PASSWORD` is empty or `change-me`.
-
-### 5. Unbounded arrays on `/api/options` blow up prompt size
-`excludeIds`, `ctx.chosen`, `rejectedMoves` and the move fields (`title`, `detail`, `requires`) have no `.max()`. One request inside the rate limit can still send a huge prompt, which costs tokens and time on every model in the chain. `/api/events` has a similar problem: `payload` is `z.record(unknown)` with no size cap, so 100 events can carry a lot of JSON into Postgres.
-**Fix:** add `.max()` to those arrays and strings, and reject bodies over about 64 KB (check `content-length`, or read `req.text()` and measure it).
-
-### 6. CSV formula injection in admin exports
-`lib/csv.ts` quotes commas and quotes, but it leaves cells that start with `=`, `+`, `-` or `@` alone. A student who types `=HYPERLINK(...)` into open feedback gets a live formula when the researcher opens the export in Excel.
-**Fix:** prefix those cells with `'` in `esc()`.
-
-### 7. "Delete test data" can match real participants
-`ilike(participant_code, 'TEST%')` also matches real codes like "Tester", "Testa" and "testudo". Deletion is permanent.
-**Fix:** match an exact prefix like `TEST-` (case-sensitive), and show the count and the codes before deleting.
-
-### 8. Prompt injection
-The wish, why and prior-attempts text go straight into the prompt. The output is schema-validated and rendered as text, so the realistic harm is off-topic or inappropriate moves. Because `llm_cache` is keyed on the normalized wish text plus context, a bad response is cached and shown again only to someone who sends the same input.
-**Fix:** this is acceptable for the prototype. The admin Moderator panel is the backstop. If needed, add a delete-cache-entry action there.
-
-### 9. No security headers
-There is no CSP, `X-Frame-Options` or `Referrer-Policy`.
-**Fix:** add `headers()` in `next.config.mjs` with `frame-ancestors 'none'`, `nosniff` and `Referrer-Policy: same-origin`.
-
-### 10. Hard-coded Docker DB credentials
-`wish/wish` in `docker-compose.yml`. Postgres is not published to the host, so it is reachable only inside the compose network. That is fine as long as nobody adds a `ports:` entry.
-
-## Privacy and study ethics
-
-- **Gemini free tier data use:** Google's terms for the unpaid Gemini API let Google use prompts and responses to improve its products, and human reviewers may read them. Students' wishes and "why" answers fall under this. The consent copy says the text "may be reviewed by that service", which matches. Check that this is acceptable for the IRB protocol. A paid (billing-enabled) key is not used for training.
-- `participant_code` is a real name and is stored in plain text in every events row. Export, then delete, after the study. Don't commit `exports/` (already git-ignored).
-- Free text may contain PII even though the consent copy asks students not to type any.
-
-## Reliability gaps
-
-### 11. Model capacity during a group session
-With `GEMINI_RPM=9` per model, and about 2 to 4 option calls plus 1 classify call per student, a room of 30 students starting at the same time will queue. Each request waits up to `LLM_BUDGET_MS` (60s) before showing a retry. Per-minute limits also do nothing about the free tier's **daily** request caps, which can run out partway through a day of sessions.
-**Fix:** before a session, run `npm run llm:check -- --all`, add Groq/OpenRouter keys as backup, stagger start times, or enable billing for the session day. Watch the admin Models panel.
-
-### 12. Events are fire-and-forget
-`lib/track.ts` empties its queue before sending. A failed POST, a 500 from a Postgres hiccup or a 429 loses those events for good. `saveWish` swallows errors the same way.
-**Fix:** put failed batches back in the queue, with a cap and backoff, and keep unsent events in `localStorage` until the server acknowledges them.
-
-### 13. In-memory state is per process
-The rate-limit buckets, model health/cooldowns and `RateQueue` slots reset on restart, and multiple replicas would not share them. This is fine for one container. Move them to Postgres or Redis before scaling out.
-
-### 14. Database
-- No backups of the `pgdata` volume. Run `pg_dump` (or the export script) after each session.
-- Pool `max: 5` (`lib/db/client.ts`) is fine for one process. Many concurrent event inserts will queue but not fail.
-- `/api/session` and `/api/wish` have no try/catch. A DB outage returns a bare 500, and the client ignores it (see 12).
-- No foreign keys between `wishes`, `events` and `sessions`, so orphan rows are possible (see 2).
-
-### 15. Model churn
-Gemini models get retired or overloaded often (see CLAUDE.md gotchas). Discovery plus `Health` handles this automatically. The remaining risk is that every model is down at once, and then students see the retry screen, as intended.
+- **Gemini free tier.** Google may use free-tier prompts and responses to improve its products, and humans may review them. `/terms` says the text "may be reviewed by that service". Check this against the IRB protocol. Daily caps still apply. Mitigations: model failover, the daily cooldown (11), and the Groq/OpenRouter/Ollama backups.
+- **In-memory state** (rate buckets, model health, the Gemini RPM queue) lives in one process and resets on restart. This is correct for the single container we run. Move it to Postgres or Redis before running more than one replica.
+- **Prompt injection.** Model output is schema-validated and rendered as text, so the worst case is an off-topic move. Clear the cache (8) if a bad set gets cached.
+- **No foreign keys** between `sessions`, `wishes` and `events`. With the session cookie (2) no new orphans can be written, and adding foreign keys would fight the out-of-order wish upserts.
+- **`npm run dev:lan` has no proxy**, so IP limits there can be dodged by faking the header. Cookie and global limits still apply. Use docker compose for real sessions.
+- **Events sent by beacon on page close** are not retried. The browser gives no result to retry on.
+- **Free text may contain PII**, and `participant_code` is a name. Export, back up, then delete after the study.
 
 ## Before each session
 
-1. `npm run llm:check -- "test wish" --all` and check that at least 2 models respond.
-2. `ADMIN_PASSWORD` is not the default. Use HTTPS if admin will be opened over the LAN.
-3. `RATE_LIMIT` is not `false`.
-4. Run one participant through with a `TEST-` code, check the admin page, then delete the test data.
-5. Back up or export afterwards.
+1. `npm run llm:check -- "test wish" --all`: at least 2 models answer.
+2. `.env` has `ADMIN_PASSWORD` (8+ characters, not `change-me`) and `LAN_HOST` set to this Mac's LAN IP.
+3. `docker compose up -d --build`. Students open `http://LAN_HOST:3010`, the researcher opens `https://LAN_HOST:3443/admin`.
+4. Do a dry run with a `TEST <name>` participant, check admin, then delete it (preview first).
+5. Afterwards: `npm run backup`, and export the CSVs.

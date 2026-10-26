@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Intake, Interstitial, Quiz, Thanks, Welcome, WhyPrior } from "./screens";
 import { Pick, type LoadOptions } from "./Pick";
 import { Summary, type FeedbackAnswers } from "./Summary";
-import { flush, setConsent, setTrackContext, track } from "@/lib/track";
-import { classify, fetchOptions, postJson, saveWish } from "@/lib/client-api";
+import { flush, setConsent, setReady, setTrackContext, track } from "@/lib/track";
+import { classify, fetchOptions, saveWish, startSession, whenSessionReady } from "@/lib/client-api";
 import { assignArchetype } from "@/lib/archetypes";
 import { uuid } from "@/lib/uuid";
 import type { Archetype, Domain, Focus, Move, PriorAttempts, WishContext, WishType } from "@/lib/types";
@@ -16,7 +16,7 @@ type Session = { sessionId: string; participantCode: string };
 const blankWish = (): Wish => ({ id: uuid(), text: "", type: "open_ended", focus: [], domains: [], prior: { chips: [] } });
 const MAX_STEPS = 5;
 
-export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro: string; data: string }; flowMoves: 1 | 3 }) {
+export default function Flow({ flowMoves }: { flowMoves: 1 | 3 }) {
   // ?p=NAME (optional) prefills the name box; participants can still edit it.
   const [initialName] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("p")?.trim().slice(0, 60) ?? ""));
   const [screen, setScreen] = useState<Screen>("welcome");
@@ -72,7 +72,8 @@ export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro:
     setSession(s);
     setTrackContext({ ...s, wishId: wish.id });
     setConsent(true);
-    postJson("/api/session", { ...s, consented: true }).catch(() => {});
+    startSession({ ...s, consented: true });
+    setReady(whenSessionReady);
     track("session_started", { user_agent: navigator.userAgent, viewport: `${innerWidth}x${innerHeight}` });
     track("consent_given");
     go("intake");
@@ -127,7 +128,7 @@ export default function Flow({ consentCopy, flowMoves }: { consentCopy: { intro:
 
   return (
     <main>
-      {screen === "welcome" && <Welcome copy={consentCopy} initialName={initialName} onContinue={begin} />}
+      {screen === "welcome" && <Welcome initialName={initialName} onContinue={begin} />}
       {screen === "intake" && (
         <Intake initial={wish.text} onStartOver={() => startOverWish(true)} onSubmit={(text, fromChip) => {
           setWish((w) => ({ ...w, text }));

@@ -27,6 +27,8 @@ export const config = {
   /** 1 = quick survey: pick one move, then rate it. 3 = full path (moves 1-3, optionally up to 5). */
   flowMoves: (env("FLOW_MOVES", "1") === "3" ? 3 : 1) as 1 | 3,
   adminPassword: env("ADMIN_PASSWORD"),
+  /** Allow admin login over plain http from another machine (password readable on the network). Off: use https or localhost. */
+  adminAllowHttp: env("ADMIN_ALLOW_HTTP") === "true",
   appVersion: "0.1.0",
 };
 

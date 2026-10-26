@@ -12,6 +12,7 @@ const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("prefer"), id: z.string().nullable() }),
   z.object({ action: z.literal("test") }),
   z.object({ action: z.literal("refresh") }),
+  z.object({ action: z.literal("clear-cache") }),
 ]);
 
 /** Admin model controls: choose which model to try first, ping every model, or re-list available models. */
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
   const a = p.data;
 
   if (a.action === "prefer") { await setPreferredBackend(a.id); return NextResponse.json({ ok: true }); }
+  // Cached moves are replayed to anyone who sends the same wish and answers; clearing drops a bad or off-topic set.
+  if (a.action === "clear-cache") {
+    const { getDb, schema } = await import("@/lib/db/client");
+    const n = (await getDb().delete(schema.llmCache).returning({ key: schema.llmCache.key })).length;
+    return NextResponse.json({ ok: true, cleared: n });
+  }
   if (a.action === "refresh") return NextResponse.json({ ok: true, count: (await getBackends(true)).length });
 
   // test: one small classification call per model, updating the shared health so the chain reacts right away.

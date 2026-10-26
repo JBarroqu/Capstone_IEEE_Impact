@@ -1,6 +1,6 @@
 import type { Backend } from "./backends";
 import { LlmUnavailable, RateLimited, Timeout, type FailReason } from "./errors";
-import { Health } from "./health";
+import { Health, isDailyQuota, msUntilPacificMidnight } from "./health";
 import { QueueTimeout } from "./queue";
 import { ValidationError } from "./validate";
 
@@ -56,7 +56,7 @@ export async function runLlm<T>(task: LlmTask<T>, o: RunOptions): Promise<RunRes
         o.health.ok(b.id, Date.now() - ts);
         return { value, backend: b, latencyMs: Date.now() - t0, tried, repaired: attempt > 0 };
       } catch (e) {
-        const detail = String((e as Error)?.message ?? e).slice(0, 300);
+        const full = String((e as Error)?.message ?? e), detail = full.slice(0, 300);
         if (e instanceof ValidationError) {
           // The backend works but its answer was off: ask once more with the problem spelled out, then move on.
           hint = e.message; last = { reason: "invalid_json", detail };
@@ -68,7 +68,8 @@ export async function runLlm<T>(task: LlmTask<T>, o: RunOptions): Promise<RunRes
         last = { reason: c.reason, detail };
         tried.push({ id: b.id, reason: c.reason });
         // A full rate queue is local back-pressure, not a sick model: don't cool it down.
-        if (!(e instanceof QueueTimeout)) o.health.fail(b.id, c.reason, detail, c.gone);
+        const daily = c.reason === "rate_limited" && isDailyQuota(full);
+        if (!(e instanceof QueueTimeout)) o.health.fail(b.id, c.reason, daily ? `daily quota used up: ${detail}` : detail, c.gone, daily ? msUntilPacificMidnight() : undefined);
         break;
       } finally {
         clearTimeout(timer);

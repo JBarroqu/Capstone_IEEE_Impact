@@ -9,6 +9,8 @@ export const EVENT_NAMES = [
 ] as const;
 
 export const eventSchema = z.object({
+  /** Client-made uuid, so a batch that is retried after a lost response is not stored twice. */
+  id: z.string().uuid().optional(),
   name: z.enum(EVENT_NAMES),
   clientTs: z.string().datetime().optional(),
   sessionId: z.string().uuid(),

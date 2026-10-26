@@ -1,6 +1,8 @@
 const esc = (v: unknown) => {
   if (v === null || v === undefined) return "";
-  const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+  let s = typeof v === "object" ? JSON.stringify(v) : String(v);
+  // Spreadsheet apps run cells starting with = + - @ (or tab/CR) as formulas; a leading ' keeps them as text.
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 

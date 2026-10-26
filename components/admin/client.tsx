@@ -5,20 +5,22 @@ import { Field, PrimaryButton, textareaCls } from "../ui";
 
 export function AdminLogin() {
   const [pw, setPw] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState("");
   const router = useRouter();
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const r = await fetch("/api/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: pw }) });
-    if (r.ok) router.refresh(); else setErr(true);
+    if (r.ok) return router.refresh();
+    const j = await r.json().catch(() => ({}));
+    setErr(r.status === 429 ? "Too many attempts. Wait a few minutes." : j.error ?? "Sign-in failed.");
   };
   return (
     <form onSubmit={submit} className="mx-auto flex min-h-dvh max-w-[420px] flex-col justify-center gap-4 px-5">
       <span className="text-[17px] font-extrabold text-blue">Wish Engine admin</span>
       <Field id="pw" label="Password">
-        <input id="pw" type="password" autoFocus value={pw} onChange={(e) => { setPw(e.target.value); setErr(false); }} className="border-0 bg-transparent p-0 text-lg outline-none" />
+        <input id="pw" type="password" autoFocus value={pw} onChange={(e) => { setPw(e.target.value); setErr(""); }} className="border-0 bg-transparent p-0 text-lg outline-none" />
       </Field>
-      {err && <p role="alert" className="m-0 text-sm font-semibold text-[#B3261E]">Wrong password.</p>}
+      {err && <p role="alert" className="m-0 text-sm font-semibold text-[#B3261E]">{err}</p>}
       <PrimaryButton type="submit" className="mt-0" disabled={!pw}>Sign in</PrimaryButton>
     </form>
   );
@@ -33,9 +35,24 @@ export function CopyJson({ json }: { json: string }) {
   );
 }
 
+type Preview = { count: number; codes: string[] };
+
 export function Moderator() {
   const [code, setCode] = useState("P08");
   const [msg, setMsg] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const check = async () => {
+    setMsg("");
+    const r = await fetch("/api/admin/delete-test").then((x) => x.json()).catch(() => null);
+    if (!r?.ok) return setMsg("Could not list test sessions.");
+    if (!r.count) return setMsg("No test sessions.");
+    setPreview({ count: r.count, codes: r.codes });
+  };
+  const del = async () => {
+    const r = await fetch("/api/admin/delete-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expect: preview?.count }) }).then((x) => x.json()).catch(() => null);
+    setPreview(null);
+    setMsg(r?.ok ? `Deleted ${r.deleted} test session(s).` : r?.reason === "changed" ? "The list changed. Check again." : "Delete failed.");
+  };
   const link = typeof window === "undefined" ? "" : `${window.location.origin}/?p=${encodeURIComponent(code.trim())}`;
   return (
     <div className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-line p-4">
@@ -46,13 +63,20 @@ export function Moderator() {
       <textarea readOnly aria-label="Test link" rows={2} value={link} className={`${textareaCls} rounded-lg bg-chip p-2 text-sm`} onFocus={(e) => e.currentTarget.select()} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="min-h-[44px] rounded-full bg-chip px-3.5 text-sm font-bold hover:bg-tint" onClick={() => navigator.clipboard?.writeText(link)}>Copy link</button>
-        <button type="button" className="min-h-[44px] rounded-full border-2 border-[#B3261E] bg-white px-3.5 text-sm font-bold text-[#B3261E]" onClick={async () => {
-          if (!confirm("Delete all sessions whose participant code starts with TEST (any case)?")) return;
-          const r = await fetch("/api/admin/delete-test", { method: "POST" }).then((x) => x.json()).catch(() => null);
-          setMsg(r?.ok ? `Deleted ${r.deleted} test session(s).` : "Delete failed.");
-        }}>Delete TEST sessions</button>
+        {!preview && <button type="button" className="min-h-[44px] rounded-full border-2 border-[#B3261E] bg-white px-3.5 text-sm font-bold text-[#B3261E]" onClick={check}>Delete TEST sessions...</button>}
         {msg && <span role="status" className="text-sm font-semibold text-muted">{msg}</span>}
       </div>
+      {preview && (
+        <div className="flex flex-col gap-2 rounded-xl bg-[#FBE9E7] p-3 text-sm">
+          <span className="font-bold text-[#B3261E]">Permanently delete {preview.count} session(s)?</span>
+          <span className="text-muted">{preview.codes.join(", ")}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={del} className="min-h-[44px] rounded-full bg-[#B3261E] px-4 font-bold text-white">Delete</button>
+            <button type="button" onClick={() => setPreview(null)} className="min-h-[44px] rounded-full bg-white px-4 font-bold">Cancel</button>
+          </div>
+        </div>
+      )}
+      <p className="m-0 text-[13px] text-muted">Test codes start with TEST in capitals and a space or dash, e.g. &quot;TEST Waleed&quot;.</p>
     </div>
   );
 }
@@ -70,6 +94,7 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
     if (!r?.ok) setMsg("Request failed.");
     else if (r.results) setMsg(`${r.results.filter((x: { ok: boolean }) => x.ok).length} of ${r.results.length} models answered.`);
     else if (typeof r.count === "number") setMsg(`Found ${r.count} models.`);
+    else if (typeof r.cleared === "number") setMsg(`Cleared ${r.cleared} cached move set(s).`);
     router.refresh();
   };
   const pill = { ok: "bg-ok-bg text-ok", untested: "bg-chip text-muted", cooling: "bg-warn-bg text-warn", gone: "bg-[#FBE9E7] text-[#B3261E]" };
@@ -84,6 +109,7 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
         </label>
         <button type="button" disabled={!!busy} onClick={() => post({ action: "test" }, "test")} className="min-h-[44px] rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark disabled:opacity-50">{busy === "test" ? "Testing..." : "Test all"}</button>
         <button type="button" disabled={!!busy} onClick={() => post({ action: "refresh" }, "refresh")} className="min-h-[44px] rounded-full bg-chip px-4 text-sm font-bold hover:bg-tint disabled:opacity-50">{busy === "refresh" ? "Looking..." : "Re-discover models"}</button>
+        <button type="button" disabled={!!busy} onClick={() => post({ action: "clear-cache" }, "clear")} title="Cached move sets are replayed for identical inputs; clear after a bad or off-topic set." className="min-h-[44px] rounded-full bg-chip px-4 text-sm font-bold hover:bg-tint disabled:opacity-50">{busy === "clear" ? "Clearing..." : "Clear cached moves"}</button>
         {msg && <span role="status" className="text-sm font-semibold text-muted">{msg}</span>}
       </div>
       {rows.length === 0 ? <p className="m-0 text-[#B3261E]">No models available. Set GEMINI_API_KEY (or GROQ_API_KEY / OPENROUTER_API_KEY), or start Ollama.</p> : (

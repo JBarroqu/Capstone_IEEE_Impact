@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "seed": "tsx scripts/seed.ts",
     "llm:check": "tsx scripts/llm-check.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backup": "sh scripts/backup.sh"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

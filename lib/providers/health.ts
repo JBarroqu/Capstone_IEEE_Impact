@@ -19,14 +19,17 @@ export class Health {
     const e = this.get(id);
     Object.assign(e, { coolUntil: 0, fails: 0, gone: false, lastOkAt: this.now(), lastLatencyMs: latencyMs });
   }
-  /** `gone`: model missing or key rejected; skip for hours. Otherwise back off 1, 2, 4 ... 10 min (rate limits: 30 s). */
-  fail(id: string, reason: FailReason, detail: string, gone = false) {
+  /**
+   * `gone`: model missing or key rejected; skip for hours. Otherwise back off 1, 2, 4 ... 10 min (rate limits: 30 s).
+   * `coolMs` overrides the wait, e.g. a used-up daily quota sits out until it resets.
+   */
+  fail(id: string, reason: FailReason, detail: string, gone = false, coolMs?: number) {
     const e = this.get(id);
     e.fails++;
     e.gone = gone;
     e.lastError = `${reason}: ${detail}`.slice(0, 200);
     e.lastErrorAt = this.now();
-    const ms = gone ? 6 * 60 * MIN : reason === "rate_limited" ? 30_000 : Math.min(10 * MIN, MIN * 2 ** (e.fails - 1));
+    const ms = coolMs ?? (gone ? 6 * 60 * MIN : reason === "rate_limited" ? 30_000 : Math.min(10 * MIN, MIN * 2 ** (e.fails - 1)));
     e.coolUntil = this.now() + ms;
   }
   cooling(id: string) { return this.get(id).coolUntil > this.now(); }
@@ -41,6 +44,16 @@ export class Health {
   }
   snapshot() { return Object.fromEntries(this.m); }
 }
+
+/** Gemini daily quotas reset at midnight Pacific time. */
+export function msUntilPacificMidnight(now = Date.now()) {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(now);
+  const n = (t: string) => Number(p.find((x) => x.type === t)?.value ?? 0);
+  return (24 * 3600 - (n("hour") * 3600 + n("minute") * 60 + n("second"))) * 1000;
+}
+
+/** A 429 that names a per-day quota (quotaId ...PerDay...), as opposed to the per-minute one. */
+export const isDailyQuota = (msg: string) => /PerDay|per day|daily/i.test(msg);
 
 const g = globalThis as unknown as { _health?: Health };
 /** Shared across route handlers and the admin page in one server process. */

@@ -1,11 +1,13 @@
-# docker compose up --build  ->  app on http://localhost:3010 (or PORT), admin at /admin.
+# docker compose up --build  ->  students on http://localhost:3010 (or PORT), admin on https://localhost:3443/admin.
 # Reads API keys, ADMIN_PASSWORD, FLOW_MOVES etc. from .env; DATABASE_URL and OLLAMA_URL are set here for the containers.
+# Set LAN_HOST in .env to this Mac's LAN IP (e.g. 192.168.1.20) so the https certificate covers https://LAN_HOST:3443.
+# POSTGRES_PASSWORD only takes effect when the pgdata volume is first created.
 services:
   db:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: wish
-      POSTGRES_PASSWORD: wish
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wish}
       POSTGRES_DB: wish_engine
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -21,7 +23,7 @@ services:
     build: { context: ., target: build }
     command: ["npx", "drizzle-kit", "push", "--force"]
     environment:
-      DATABASE_URL: postgres://wish:wish@db:5432/wish_engine
+      DATABASE_URL: postgres://wish:${POSTGRES_PASSWORD:-wish}@db:5432/wish_engine
     depends_on:
       db: { condition: service_healthy }
 
@@ -29,14 +31,28 @@ services:
     build: { context: ., target: runner }
     env_file: .env
     environment:
-      DATABASE_URL: postgres://wish:wish@db:5432/wish_engine
+      DATABASE_URL: postgres://wish:${POSTGRES_PASSWORD:-wish}@db:5432/wish_engine
       # Ollama running on the host Mac (optional backup model).
       OLLAMA_URL: http://host.docker.internal:11434
-    ports:
-      - "${PORT:-3010}:3000"
+    # Not published: only Caddy reaches it, so X-Forwarded-For is always Caddy's.
+    expose: ["3000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
     restart: unless-stopped
 
+  proxy:
+    image: caddy:2.10-alpine
+    environment:
+      LAN_HOST: ${LAN_HOST:-127.0.0.1}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    ports:
+      - "${PORT:-3010}:3010"
+      - "${HTTPS_PORT:-3443}:3443"
+    depends_on: [app]
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  caddydata:
