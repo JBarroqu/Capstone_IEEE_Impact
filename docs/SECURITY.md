@@ -42,6 +42,19 @@ Per-IP limits are loose because a lab can share one campus NAT address. The glob
 
 The front page no longer shows the consent text. It sits at `/terms`, linked from "By continuing you agree to the study terms" under the Get started button. Clicking Get started is logged as `consent_given`, as before.
 
+## Running locally: what can be ignored
+
+If the app only runs on the researcher's laptop and participants use that laptop (`http://localhost`), nobody else can reach it, and these protect against nothing:
+
+- Caddy, `X-Forwarded-For` handling and per-IP / global rate limits (1), the https admin port and the plain-http login block (3)
+- Signed session cookie and session checks on the write routes (2)
+- Signed, expiring admin cookie, password strength check, login rate limit (4)
+- Body size caps and `.max()` limits (5), security headers (9), env-driven Docker DB password (10)
+
+Still useful locally: the Gemini request queue and daily-quota cooldown (11), event and wish retries (12), backups and DB error handling (14), CSV formula escaping (6) and the safer TEST delete (7). The privacy notes below apply either way.
+
+If participants join from their own devices over the LAN, the admin password crossing the Wi-Fi (3) matters again. The rest stays low-risk during a moderated session.
+
 ## Accepted (not fixed, by choice)
 
 - **Gemini free tier.** Google may use free-tier prompts and responses to improve its products, and humans may review them. `/terms` says the text "may be reviewed by that service". Check this against the IRB protocol. Daily caps still apply. Mitigations: model failover, the daily cooldown (11), and the Groq/OpenRouter/Ollama backups.
