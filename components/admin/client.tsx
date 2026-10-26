@@ -12,7 +12,7 @@ export function AdminLogin() {
     const r = await fetch("/api/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: pw }) });
     if (r.ok) return router.refresh();
     const j = await r.json().catch(() => ({}));
-    setErr(r.status === 429 ? "Too many attempts. Wait a few minutes." : j.error ?? "Sign-in failed.");
+    setErr(j.error ?? "Sign-in failed.");
   };
   return (
     <form onSubmit={submit} className="mx-auto flex min-h-dvh max-w-[420px] flex-col justify-center gap-4 px-5">

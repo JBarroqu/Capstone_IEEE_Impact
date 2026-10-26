@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { clientIp, limited, rules } from "@/lib/rate-limit";
 import { z } from "zod";
 import { isAdmin } from "@/lib/admin-auth";
 import { getBackends } from "@/lib/providers/backends";
@@ -17,8 +16,6 @@ const body = z.discriminatedUnion("action", [
 /** Admin model controls: choose which model to try first, ping every model, or re-list available models. */
 export async function POST(req: Request) {
   if (!(await isAdmin())) return NextResponse.json({ ok: false }, { status: 401 });
-  const rl = limited([rules.adminModelsIp, clientIp(req)]);
-  if (rl) return rl;
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
   const a = p.data;

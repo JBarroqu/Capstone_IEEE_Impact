@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import { clientIp, limited, rules } from "@/lib/rate-limit";
-import { readJson } from "@/lib/request";
-import { currentSession } from "@/lib/session-auth";
 import { z } from "zod";
 import { getOptions } from "@/lib/providers";
 import { LlmUnavailable } from "@/lib/providers/llm";
@@ -31,17 +28,10 @@ const body = z.object({
 });
 
 export async function POST(req: Request) {
-  const ip = limited([rules.optionsIp, clientIp(req)]);
-  if (ip) return ip;
-  const p = body.safeParse(await readJson(req, 32_768));
+  const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
-  // Model calls only for a session that went through consent; the session comes from the signed cookie, not the body.
-  const session = await currentSession();
-  if (!session || (p.data.sessionId && p.data.sessionId !== session)) return NextResponse.json({ ok: false, reason: "no_session" }, { status: 401 });
-  const s = limited([rules.optionsSession, session], [rules.optionsAll, "all"]);
-  if (s) return s;
   try {
-    const result = await getOptions({ ...p.data, sessionId: session } as never);
+    const result = await getOptions(p.data as never);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const reason = e instanceof LlmUnavailable ? e.reason : "error";

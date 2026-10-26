@@ -14,18 +14,12 @@ export async function postRaw(url: string, body: unknown, tries = 3): Promise<Re
   }
 }
 
-// Every call except /api/session waits for the session cookie, which the other routes require.
-let sessionReady: Promise<unknown> = Promise.resolve();
-export const whenSessionReady = () => sessionReady;
-
-/** Creates the server session (and its cookie) right after consent. Retries; later calls wait for it. */
+/** Creates the server session row right after consent, with retries. */
 export function startSession(body: { sessionId: string; participantCode: string; consented: true }) {
-  sessionReady = postRaw("/api/session", body, 5).catch(() => {});
-  return sessionReady;
+  postRaw("/api/session", body, 5).catch(() => {});
 }
 
 export async function postJson(url: string, body: unknown, tries = 3): Promise<any> {
-  await sessionReady;
   const res = await postRaw(url, body, tries);
   if (!res.ok) throw new Error(`${url} ${res.status}`);
   return res.json();
@@ -42,7 +36,6 @@ export class OptionsError extends Error {
   constructor(public reason: string) { super(`options failed: ${reason}`); }
 }
 export async function fetchOptions(body: unknown): Promise<OptionsResponse> {
-  await sessionReady;
   // One try: the server already walks the model chain, and the student gets a retry button on failure.
   const res = await postRaw("/api/options", body, 1);
   const r = await res.json().catch(() => ({}));

@@ -1,24 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { signedToken } from "@/lib/secret";
 import { toCsv } from "@/lib/csv";
 import { Health, isDailyQuota, msUntilPacificMidnight } from "@/lib/providers/health";
-import { readJson } from "@/lib/request";
-
-describe("signedToken", () => {
-  const s = "secret";
-  it("round-trips and expires", () => {
-    const t = signedToken.make(s, "abc", 1_000_000);
-    expect(signedToken.verify(s, t, 60_000, 1_030_000)).toBe("abc");
-    expect(signedToken.verify(s, t, 60_000, 1_070_000)).toBeNull();
-  });
-  it("rejects a changed payload, another secret, or garbage", () => {
-    const t = signedToken.make(s, "abc");
-    expect(signedToken.verify(s, t.replace("abc", "abd"), 60_000)).toBeNull();
-    expect(signedToken.verify("other", t, 60_000)).toBeNull();
-    expect(signedToken.verify(s, "nodots", 60_000)).toBeNull();
-    expect(signedToken.verify(s, undefined, 60_000)).toBeNull();
-  });
-});
 
 describe("toCsv", () => {
   it("defuses formulas in text but leaves numbers alone", () => {
@@ -46,14 +28,5 @@ describe("daily quota", () => {
     expect(h.cooling("m")).toBe(true);
     t = 5 * 3_600_000 + 1;
     expect(h.cooling("m")).toBe(false);
-  });
-});
-
-describe("readJson", () => {
-  const req = (body: string, headers: Record<string, string> = {}) => new Request("http://x", { method: "POST", body, headers });
-  it("parses small bodies and refuses big or broken ones", async () => {
-    expect(await readJson(req('{"a":1}'))).toEqual({ a: 1 });
-    expect(await readJson(req(JSON.stringify({ a: "x".repeat(200) })), 100)).toBeNull();
-    expect(await readJson(req("{", {}))).toBeNull();
   });
 });

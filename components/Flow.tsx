@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Intake, Interstitial, Quiz, Thanks, Welcome, WhyPrior } from "./screens";
 import { Pick, type LoadOptions } from "./Pick";
 import { Summary, type FeedbackAnswers } from "./Summary";
-import { flush, setConsent, setReady, setTrackContext, track } from "@/lib/track";
-import { classify, fetchOptions, saveWish, startSession, whenSessionReady } from "@/lib/client-api";
+import { flush, setConsent, setTrackContext, track } from "@/lib/track";
+import { classify, fetchOptions, saveWish, startSession } from "@/lib/client-api";
 import { assignArchetype } from "@/lib/archetypes";
 import { uuid } from "@/lib/uuid";
 import type { Archetype, Domain, Focus, Move, PriorAttempts, WishContext, WishType } from "@/lib/types";
@@ -73,7 +73,6 @@ export default function Flow({ flowMoves }: { flowMoves: 1 | 3 }) {
     setTrackContext({ ...s, wishId: wish.id });
     setConsent(true);
     startSession({ ...s, consented: true });
-    setReady(whenSessionReady);
     track("session_started", { user_agent: navigator.userAgent, viewport: `${innerWidth}x${innerHeight}` });
     track("consent_given");
     go("intake");

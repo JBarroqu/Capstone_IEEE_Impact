@@ -18,14 +18,10 @@ export const config = {
   llmBudgetMs: Number(env("LLM_BUDGET_MS", "60000")),
   /** Classification runs while the student fills in the next screen; keyword matching answers if this runs out. */
   classifyBudgetMs: Number(env("CLASSIFY_BUDGET_MS", "20000")),
-  /** Per-IP and per-session request limits on the API (lib/rate-limit.ts). RATE_LIMIT=false turns them off for load tests. */
-  rateLimit: env("RATE_LIMIT", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
   /** 1 = quick survey: pick one move, then rate it. 3 = full path (moves 1-3, optionally up to 5). */
   flowMoves: (env("FLOW_MOVES", "1") === "3" ? 3 : 1) as 1 | 3,
   adminPassword: env("ADMIN_PASSWORD"),
-  /** Allow admin login over plain http from another machine (password readable on the network). Off: use https or localhost. */
-  adminAllowHttp: env("ADMIN_ALLOW_HTTP") === "true",
   appVersion: "0.1.0",
 };
 

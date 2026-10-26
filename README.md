@@ -9,14 +9,14 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 4. `npm run dev` (or `npm run dev:lan` so other devices on your Wi-Fi can reach it).
 
 ## Docker (alternative to the setup above)
-Needs Docker Desktop and a `.env` (API keys, `ADMIN_PASSWORD` of 8+ characters, `LAN_HOST` = this Mac's LAN IP, `FLOW_MOVES`, ...). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Caddy is the only public entry: plain http for students, https (its own certificate; accept the browser warning once) for admin, which refuses logins over plain http from other machines.
+Needs Docker Desktop and a `.env` (API keys, `ADMIN_PASSWORD`, `FLOW_MOVES`, ...). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Built for local and LAN test sessions only; see `docs/GOING-PUBLIC.md` before exposing it to the internet.
 ```
-docker compose up -d --build     # students: http://LAN_HOST:3010   admin: https://LAN_HOST:3443/admin
+docker compose up -d --build     # app on http://localhost:3010, admin at /admin
 docker compose logs -f app       # server logs
 docker compose down              # stop (data is kept in the pgdata volume)
 docker compose down -v           # stop and delete all data
 ```
-`PORT=3020 HTTPS_PORT=3444 docker compose up -d` picks other ports. `npm run backup` dumps the database to `backups/`. Tables are created on every start by the `migrate` service. After code changes, rebuild with `docker compose up -d --build`. Ollama on the Mac is reached at `host.docker.internal:11434`.
+`PORT=3020 docker compose up -d` picks another port. `npm run backup` dumps the database to `backups/`. Tables are created on every start by the `migrate` service. After code changes, rebuild with `docker compose up -d --build`. Ollama on the Mac is reached at `host.docker.internal:11434`.
 
 ## Models (`MOVE_PROVIDER`)
 - `auto` (default): every available model with automatic failover. Gemini models are discovered from the API (no model setting needed); Groq / OpenRouter join if `GROQ_API_KEY` / `OPENROUTER_API_KEY` is set; a local Ollama joins if it is running.

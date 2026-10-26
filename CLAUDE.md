@@ -1,6 +1,6 @@
 # Wish Engine prototype
 
-Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`. Gemini Interactions API research: `docs/GEMINI-INTERACTIONS.md`.
+Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`. Before going public: `docs/GOING-PUBLIC.md`. Gemini Interactions API research: `docs/GEMINI-INTERACTIONS.md`.
 
 User-testing prototype: shows students 3 move options per step for a "wish", logs every pick/skip/reject, collects feedback. Source of truth for requirements: `docs/PROMPT.md` (note its UPDATE notes: laptop-first, Gemini default, single design in /design, no themes).
 
@@ -11,14 +11,14 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - Content is pitched at senior ASU CS majors. No emoji, no "AI"/"smart" wording, say "moves"/"options".
 
 ## Commands
-`npm run dev` · `npm run backup` (pg_dump to backups/) · `npm test` (vitest, no live LLM calls) · `npm run typecheck` · `npm run db:push` · `npm run seed` (validates data/wishes.json) · `npm run llm:check [wish]` · `npx tsx scripts/e2e.ts` (browser smoke test, needs dev server + Chrome; `BASE_URL=` for another port) · `docker compose up -d --build` (Caddy :3010 http / :3443 https + app + own Postgres; standalone output is enabled only via NEXT_STANDALONE=1 in the Dockerfile)
+`npm run dev` · `npm run backup` (pg_dump to backups/) · `npm test` (vitest, no live LLM calls) · `npm run typecheck` · `npm run db:push` · `npm run seed` (validates data/wishes.json) · `npm run llm:check [wish]` · `npx tsx scripts/e2e.ts` (browser smoke test, needs dev server + Chrome; `BASE_URL=` for another port) · `docker compose up -d --build` (app + own Postgres on :3010; standalone output is enabled only via NEXT_STANDALONE=1 in the Dockerfile)
 
 ## Layout
 - `data/` wishes.json (starter chips), keywords.json (classifier fallback). No moves.
 - `lib/engine/` keyword classifier (fallback) + starter wishes
 - `lib/providers/` `getOptions` (index.ts: provider + generated_moves persistence) → `llm.ts` `chainProvider`/`runChain` → `run.ts` walks the model chain: `backends.ts` discovers models (Gemini via ListModels API, ranked lite > flash > pro; Groq/OpenRouter if keyed; local Ollama if running), `health.ts` puts failing models on cooldown so the next request skips them, admin "Try first" choice in `prefs.ts` (settings table). Throws `LlmUnavailable` when every model fails or LLM_BUDGET_MS runs out. Prompts: `lib/prompts/moves.v3.ts` (bump `PROMPT_VERSION`; `MOVES_TEMPERATURE` 0.8, other tasks 0.4), `classify.v1.ts` (bump `CLASSIFY_VERSION`)
 - Wish classification: `/api/classify` runs the same chain in the background after the wish is submitted (no student-facing screen); move requests wait for it. Keyword classifier answers only if every model fails (`source: "keywords"`).
-- Security (details in `docs/SECURITY.md`): `lib/rate-limit.ts` per-IP/per-session/global token buckets at the top of each API route (429 `reason: rate_limited`; `RATE_LIMIT=false` disables). `/api/session` sets a signed `wish_sess` cookie (`lib/session-auth.ts`, key from `lib/secret.ts`); options/classify/wish/events return 401 without it, so client calls go through `postJson`/`fetchOptions`, which wait for `startSession`. Bodies read with `readJson(req, maxBytes)` from `lib/request.ts`. Docker: Caddy (`Caddyfile`) is the only public entry, http :3010 for students, https :3443 for admin; admin login over plain LAN http is refused
+- Security: local/LAN posture only (admin password, CSV escaping, safe TEST delete, retries, backups); see `docs/SECURITY.md`. The public-facing layer (rate limits, signed session cookie, Caddy https, signed admin cookie, body caps, headers) is preserved at git tag `public-hardening`; `docs/GOING-PUBLIC.md` says what to restore. Don't re-add it for local work.
 - `lib/analytics.ts` pure stat/CSV-row functions over event rows; `lib/admin-data.ts` loads from DB; API under `app/api/`
 - `lib/track.ts` client event batching (needs `setConsent(true)` first; flushes with sendBeacon on pagehide)
 

@@ -2,22 +2,13 @@ import { NextResponse } from "next/server";
 import { getDb, schema } from "@/lib/db/client";
 import { eventBatchSchema } from "@/lib/events";
 import { config } from "@/lib/config";
-import { clientIp, limited, rules } from "@/lib/rate-limit";
-import { readJson } from "@/lib/request";
-import { currentSession } from "@/lib/session-auth";
 
-/** Batches from lib/track.ts. 64 KB is far above a real batch (100 events of a few hundred bytes). */
+/** Batches from lib/track.ts. Event ids come from the client, so a retried batch is not stored twice. */
 export async function POST(req: Request) {
-  const ip = limited([rules.eventsIp, clientIp(req)]);
-  if (ip) return ip;
-  const json = await readJson(req, 65_536);
-  if (json === null) return NextResponse.json({ ok: false }, { status: 400 });
+  let json: unknown;
+  try { json = JSON.parse(await req.text()); } catch { return NextResponse.json({ ok: false }, { status: 400 }); }
   const parsed = eventBatchSchema.safeParse(json);
   if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.message }, { status: 400 });
-  const session = await currentSession();
-  if (!session || parsed.data.events.some((e) => e.sessionId !== session)) return NextResponse.json({ ok: false, reason: "no_session" }, { status: 401 });
-  const s = limited([rules.eventsSession, session]);
-  if (s) return s;
   try {
     const db = getDb();
     const rows = parsed.data.events.map((e) => ({
