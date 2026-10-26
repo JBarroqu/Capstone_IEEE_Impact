@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, limited, rules } from "@/lib/rate-limit";
 import { z } from "zod";
 import { getOptions } from "@/lib/providers";
 import { LlmUnavailable } from "@/lib/providers/llm";
@@ -26,8 +27,12 @@ const body = z.object({
 });
 
 export async function POST(req: Request) {
+  const ip = limited([rules.optionsIp, clientIp(req)]);
+  if (ip) return ip;
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
+  const s = limited([rules.optionsSession, p.data.sessionId]);
+  if (s) return s;
   try {
     const result = await getOptions(p.data as never);
     return NextResponse.json({ ok: true, ...result });

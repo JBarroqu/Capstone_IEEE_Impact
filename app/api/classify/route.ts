@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, limited, rules } from "@/lib/rate-limit";
 import { z } from "zod";
 import { config } from "@/lib/config";
 import { classifyWish } from "@/lib/engine/classify";
@@ -12,6 +13,8 @@ const body = z.object({ wishText: z.string().min(1).max(500) });
  * keyword classifier answers instead (source: "keywords") rather than blocking the student.
  */
 export async function POST(req: Request) {
+  const rl = limited([rules.classifyIp, clientIp(req)]);
+  if (rl) return rl;
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
   const text = p.data.wishText;

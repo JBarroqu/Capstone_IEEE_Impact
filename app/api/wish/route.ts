@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, limited, rules } from "@/lib/rate-limit";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db/client";
 import { ARCHETYPES, DOMAINS, FOCUSES } from "@/lib/types";
@@ -15,6 +16,8 @@ const body = z.object({
 
 /** Upsert a wish; later screens send partial updates for the same id. */
 export async function POST(req: Request) {
+  const rl = limited([rules.writeIp, clientIp(req)]);
+  if (rl) return rl;
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.message }, { status: 400 });
   const { id, sessionId, ...rest } = p.data;

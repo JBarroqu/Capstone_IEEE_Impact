@@ -18,6 +18,7 @@ User-testing prototype: shows students 3 move options per step for a "wish", log
 - `lib/engine/` classify + static selector (deterministic; ≥2 free, ≤1 paid; relaxes domain → focus → step)
 - `lib/providers/` `getOptions` (index.ts: provider + Postgres cache + generated_moves persistence) → `llm.ts` `chainProvider`/`runChain` → `run.ts` walks the model chain: `backends.ts` discovers models (Gemini via ListModels API, ranked lite > flash > pro; Groq/OpenRouter if keyed; local Ollama if running), `health.ts` puts failing models on cooldown so the next request skips them, admin "Try first" choice in `prefs.ts` (settings table). Throws `LlmUnavailable` when every model fails or LLM_BUDGET_MS runs out; NO static substitution unless LLM_FALLBACK=static. Prompts: `lib/prompts/moves.v2.ts` (bump `PROMPT_VERSION`), `classify.v1.ts` (bump `CLASSIFY_VERSION`)
 - Wish classification: `/api/classify` runs the same chain in the background after the wish is submitted (no student-facing screen); move requests wait for it. Keyword classifier answers only if every model fails (`source: "keywords"`).
+- `lib/rate-limit.ts` in-memory per-IP/per-session token buckets called at the top of each API route (429 `reason: rate_limited`); `RATE_LIMIT=false` disables. Known gaps: `docs/SECURITY.md`
 - `lib/analytics.ts` pure stat/CSV-row functions over event rows; `lib/admin-data.ts` loads from DB; API under `app/api/`
 - `lib/track.ts` client event batching (needs `setConsent(true)` first; flushes with sendBeacon on pagehide)
 

@@ -21,6 +21,8 @@ export const config = {
   /** "none" (default): if the LLM fails, show an error + retry. "static": silently substitute catalog moves. */
   llmFallback: (env("LLM_FALLBACK", "none") === "static" ? "static" : "none") as "none" | "static",
   llmCache: env("LLM_CACHE", "true") !== "false",
+  /** Per-IP and per-session request limits on the API (lib/rate-limit.ts). RATE_LIMIT=false turns them off for load tests. */
+  rateLimit: env("RATE_LIMIT", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
   /** 1 = quick survey: pick one move, then rate it. 3 = full path (moves 1-3, optionally up to 5). */
   flowMoves: (env("FLOW_MOVES", "1") === "3" ? 3 : 1) as 1 | 3,

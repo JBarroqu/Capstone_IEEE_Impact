@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
+import { clientIp, limited, rules } from "@/lib/rate-limit";
 import { getDb, schema } from "@/lib/db/client";
 import { eventBatchSchema } from "@/lib/events";
 import { config } from "@/lib/config";
 
 export async function POST(req: Request) {
+  const ip = limited([rules.eventsIp, clientIp(req)]);
+  if (ip) return ip;
   let json: unknown;
   try { json = JSON.parse(await req.text()); } catch { return NextResponse.json({ ok: false }, { status: 400 }); }
   const parsed = eventBatchSchema.safeParse(json);
   if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.message }, { status: 400 });
+  const s = limited([rules.eventsSession, parsed.data.events[0]?.sessionId]);
+  if (s) return s;
   try {
     const db = getDb();
     const rows = parsed.data.events.map((e) => ({
