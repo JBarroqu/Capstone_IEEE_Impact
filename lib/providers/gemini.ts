@@ -24,17 +24,25 @@ export function geminiBackend(model: string): Backend {
   return {
     id: `gemini:${model}`, provider: "gemini", model, remote: true,
     acquire: (w) => queue.acquire(w),
+    // Interactions API (Google's recommended API; generateContent is legacy). Stateless: every call carries its full
+    // prompt and store:false, so nothing about the student is kept on Google's side beyond normal processing.
+    // See docs/GEMINI-INTERACTIONS.md.
     async generate({ system, user, schema, temperature = 0.4 }, signal) {
       try {
-        const res = await client().models.generateContent({
-          model,
-          contents: user,
-          config: { systemInstruction: system, temperature, responseMimeType: "application/json", responseJsonSchema: schema, abortSignal: signal },
-        });
-        return res.text ?? "";
+        const res = await client().interactions.create(
+          {
+            model, input: user, system_instruction: system, store: false,
+            response_format: { type: "text", mime_type: "application/json", schema: schema as Record<string, unknown> },
+            // temperature is accepted by the API (and range-checked) but missing from the SDK's type.
+            generation_config: { temperature } as Record<string, unknown>,
+          },
+          { signal, retries: { strategy: "none" } }, // the chain does retries and failover itself
+        );
+        return res.output_text ?? "";
       } catch (e) {
         const msg = String((e as Error)?.message ?? e);
-        if (/429|RESOURCE_EXHAUSTED/i.test(msg)) throw new RateLimited(msg);
+        if ((e as { status?: number }).status === 429 || /429|RESOURCE_EXHAUSTED/i.test(msg)) throw new RateLimited(msg);
+        if ((e as Error)?.name === "APIUserAbortError") throw Object.assign(new Error("aborted"), { name: "AbortError" });
         throw e;
       }
     },
