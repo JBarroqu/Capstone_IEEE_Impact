@@ -1,7 +1,7 @@
 import type { Move, OptionsRequest } from "../types";
 import { FOCUSES, DOMAINS, FORMATS, ARCHETYPES } from "../types";
 
-export const PROMPT_VERSION = "moves.v3";
+export const PROMPT_VERSION = "moves.v4";
 
 /** Moves should vary between students with the same wish; classification keeps the backend default. */
 export const MOVES_TEMPERATURE = 0.8;
@@ -91,6 +91,8 @@ export function buildPrompt(req: OptionsRequest, errorHint?: string) {
     lines.push(
       `Already tried and didn't like: ${[...ctx.prior.chips, ctx.prior.text].filter(Boolean).join("; ")}. Rank these formats lower and avoid repeating them.`,
     );
+  if (ctx.followUps?.length)
+    lines.push(`Their answers to follow-up questions (use these to fit the moves to their situation):\n${ctx.followUps.map((f) => `- ${f.question} → ${f.answer}`).join("\n")}`);
   if (ctx.archetype) lines.push(`Archetype (affects ranking only): ${ctx.archetype}.`);
   if (ctx.chosen.length)
     lines.push(`Moves already locked in:\n${ctx.chosen.map((m, i) => `${i + 1}. ${fmt(m)}`).join("\n")}`);

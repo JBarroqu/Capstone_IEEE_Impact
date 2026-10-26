@@ -10,7 +10,9 @@ import { runChain } from "../lib/providers/llm";
 import { Health } from "../lib/providers/health";
 import { config } from "../lib/config";
 import { rawMoveSchema } from "../lib/providers/validate";
-import { buildClassifyPrompt, classifyJsonSchema, parseClassify } from "../lib/prompts/classify.v1";
+import { buildClassifyPrompt, classifyJsonSchema, parseClassify, type WishClass } from "../lib/prompts/classify.v1";
+import { buildQuestionsPrompt, parseQuestions, QUESTIONS_TEMPERATURE, questionsJsonSchema } from "../lib/prompts/questions.v1";
+import type { FollowUp } from "../lib/types";
 import type { OptionsRequest } from "../lib/types";
 
 const args = process.argv.slice(2);
@@ -38,16 +40,31 @@ async function main() {
   }
 
   let ok = true;
+  let cls: WishClass = { focus: ["advance"], domains: ["technical", "career"], type: "open_ended" };
   try {
     const c = await runChain(classifyTask);
+    cls = c.value;
     console.log(`\nclassified by ${c.backend.id} in ${c.latencyMs}ms: ${JSON.stringify(c.value)}${c.tried.length ? ` (skipped ${c.tried.map((t) => `${t.id}:${t.reason}`).join(", ")})` : ""}`);
   } catch (e) {
     ok = false;
     console.log(`\nclassify FAILED: ${(e as Error).message}`);
   }
 
+  // Follow-up questions, answered with the second option each time (as a stand-in student).
+  const base = { wishText: wish, ...cls, why: "I want it to help me get a new-grad offer", prior: { chips: ["online course"] } };
+  let followUps: FollowUp[] = [];
+  try {
+    const q = await runChain({ schema: questionsJsonSchema, temperature: QUESTIONS_TEMPERATURE, build: (h) => buildQuestionsPrompt(base, h), parse: parseQuestions });
+    console.log(`\nquestions by ${q.backend.id} in ${q.latencyMs}ms:`);
+    for (const x of q.value) console.log(`  ${x.prompt}\n    ${x.answers.map((a, i) => (i === 1 ? `[${a.label}]` : a.label)).join(" | ")}   (${x.note})`);
+    followUps = q.value.map((x) => ({ question: x.prompt, answer: x.answers[1].label, note: x.note }));
+  } catch (e) {
+    ok = false;
+    console.log(`\nquestions FAILED: ${(e as Error).message}`);
+  }
+
   const req: OptionsRequest = {
-    ctx: { wishText: wish, type: "open_ended", focus: ["advance"], domains: ["technical", "career"], why: "I want it to help me get a new-grad offer", prior: { chips: ["online course"] }, archetype: "builder", chosen: [] },
+    ctx: { ...base, followUps, chosen: [] },
     step: 1, excludeIds: [], rerollIndex: 0,
   };
   try {

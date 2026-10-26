@@ -7,7 +7,10 @@ import { getOptions, type Store } from "@/lib/providers";
 import { genId } from "@/lib/providers/validate";
 import { RateQueue, QueueTimeout } from "@/lib/providers/queue";
 import type { OptionsRequest } from "@/lib/types";
-import { buildPrompt, MOVES_TEMPERATURE } from "@/lib/prompts/moves.v3";
+import { buildPrompt, MOVES_TEMPERATURE } from "@/lib/prompts/moves.v4";
+import { buildQuestionsPrompt, parseQuestions } from "@/lib/prompts/questions.v1";
+import { toFollowUps } from "@/lib/follow-ups";
+import { ValidationError } from "@/lib/providers/validate";
 
 const req: OptionsRequest = {
   ctx: { wishText: "Pass technical interviews", type: "fixed", focus: ["goal"], domains: ["career"], prior: { chips: [] }, chosen: [] },
@@ -178,5 +181,30 @@ describe("model discovery + classification", () => {
     );
     expect(r.value).toEqual({ focus: ["goal"], domains: ["career"], type: "fixed" });
     expect(r.backend.model).toBe("ok");
+  });
+});
+
+describe("follow-up questions", () => {
+  const q = (prompt: string, answers = ["Not started", "Some progress", "Nearly there"]) => ({ prompt, answers, note: "how far along" });
+  it("parses three questions with positional ids", () => {
+    const set = parseQuestions(JSON.stringify({ questions: [q("How far along are you?"), q("How many hours a week can you give this?"), q("What has blocked you so far?")] }));
+    expect(set.map((x) => x.id)).toEqual(["g1", "g2", "g3"]);
+    expect(set[0].answers.map((a) => a.id)).toEqual(["a", "b", "c"]);
+  });
+  it("rejects too few questions or duplicate answers (so the chain retries)", () => {
+    expect(() => parseQuestions(JSON.stringify({ questions: [q("Only one question here?")] }))).toThrow(ValidationError);
+    expect(() => parseQuestions(JSON.stringify({ questions: [q("How far along are you?", ["Yes", "yes", "No"]), q("Second question here?"), q("Third question here?")] }))).toThrow(/duplicate/);
+  });
+  it("prompt has the wish and context but no example questions or moves", () => {
+    const { user, system } = buildQuestionsPrompt({ ...req.ctx, why: "graduating in May" });
+    expect(user).toContain("Pass technical interviews");
+    expect(user).toContain("graduating in May");
+    expect(system).toMatch(/Do not suggest moves, tools or resources/);
+  });
+  it("answers become follow-ups in the moves prompt", () => {
+    const set = { source: "llm" as const, latencyMs: 1, questions: parseQuestions(JSON.stringify({ questions: [q("How far along are you?"), q("How many hours a week?"), q("What blocked you?")] })) };
+    const fu = toFollowUps(set, { g1: "b", g3: "a" });
+    expect(fu).toEqual([{ question: "How far along are you?", answer: "Some progress", note: "how far along" }, { question: "What blocked you?", answer: "Not started", note: "how far along" }]);
+    expect(buildPrompt({ ...req, ctx: { ...req.ctx, followUps: fu } }).user).toContain("How far along are you? → Some progress");
   });
 });

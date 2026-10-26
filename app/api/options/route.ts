@@ -23,7 +23,9 @@ const body = z.object({
     focus: z.array(z.enum(FOCUSES)).max(10), domains: z.array(z.enum(DOMAINS)).max(10),
     why: z.string().max(1000).optional(),
     prior: z.object({ chips: z.array(z.string().max(40)).max(10), text: z.string().max(1000).optional() }).default({ chips: [] }),
-    archetype: z.enum(ARCHETYPES).optional(), chosen: z.array(move).max(5).default([]),
+    archetype: z.enum(ARCHETYPES).optional(),
+    followUps: z.array(z.object({ question: z.string().max(200), answer: z.string().max(80), note: z.string().max(200).optional() })).max(5).optional(),
+    chosen: z.array(move).max(5).default([]),
   }),
 });
 

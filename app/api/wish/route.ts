@@ -11,6 +11,7 @@ const body = z.object({
   guessedFocus: z.array(z.enum(FOCUSES)).max(10).optional(), guessedDomains: z.array(z.enum(DOMAINS)).max(10).optional(),
   archetype: z.enum(ARCHETYPES).optional(), why: z.string().max(1000).optional(),
   priorAttempts: z.object({ chips: z.array(z.string().max(40)).max(10), text: z.string().max(1000).optional() }).optional(),
+  followUps: z.array(z.object({ question: z.string().max(200), answer: z.string().max(80), note: z.string().max(200).optional() })).max(5).optional(),
 });
 
 /** Upsert a wish; later screens send partial updates for the same id. */

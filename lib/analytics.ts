@@ -200,6 +200,8 @@ export type Round = {
 };
 export type WishJourney = {
   wishId: string | null; text: string; why: string; archetype: string; focus: string[]; domains: string[]; classifierChanged: boolean | null;
+  /** Follow-up questions shown for this wish and the answer to each (null = not answered). Null for rows before questions_shown existed. */
+  questions: { source: string; skipped: boolean; items: { question: string; answer: string | null }[] } | null;
   steps: { step: number; rounds: Round[]; failed: number; useful: string | null }[];
   path: string[] | null; rating: number | null; wouldDo: string | null; paid: { moveId: string; answer: string }[]; openFeedback: string | null;
 };
@@ -233,9 +235,15 @@ export function journeys(ev: EventRow[], wishes: WishRow[]): Journey[] {
         else if (e.name === "options_feedback") s.useful = String(e.payload.answer);
       }
       const rating = Number(one("path_rated")?.rating);
+      const qs = one("questions_shown");
+      const answered = new Map(we.filter((e) => e.name === "quiz_answered").map((e) => [e.payload.q, String(e.payload.answer_text ?? e.payload.answer)]));
       return {
         wishId, text: w?.text ?? one("wish_submitted")?.text ?? "", why: w?.why ?? "", archetype: w?.archetype ?? one("archetype_assigned")?.archetype ?? "",
         focus: w?.focus ?? [], domains: w?.domains ?? [], classifierChanged: one("classification_confirmed")?.changed ?? null,
+        questions: qs ? {
+          source: String(qs.source), skipped: !!one("quiz_skipped"),
+          items: ((qs.questions ?? []) as { id: string; prompt: string }[]).map((q) => ({ question: q.prompt, answer: answered.get(q.id) ?? null })),
+        } : null,
         steps: [...steps.values()].sort((a, b) => a.step - b.step),
         path: one("path_completed")?.move_ids ?? null, rating: isNaN(rating) ? null : rating, wouldDo: one("would_do_this_week")?.answer ?? null,
         paid: we.filter((e) => e.name === "paid_willingness").map((e) => ({ moveId: e.payload.move_id, answer: String(e.payload.answer) })),

@@ -68,6 +68,12 @@ function JourneyCard({ j, label, showName, meta }: { j: Journey; label: string; 
                 Focus {w.focus.join(", ") || "–"} · Area {w.domains.join(", ") || "–"} · Archetype {w.archetype || "–"}
               </div>
               {w.why && <div className="mt-1 text-[13px]"><b>Why:</b> {w.why}</div>}
+              {w.questions && (
+                <div className="mt-2 flex flex-col gap-0.5 text-[13px]">
+                  <span className="font-bold text-blue-dark">Follow-up questions ({w.questions.source === "llm" ? "generated" : "fixed quiz, models failed"}){w.questions.skipped ? " · skipped" : ""}</span>
+                  {w.questions.items.map((q, qi) => <span key={qi}>{q.question} <b>{q.answer ?? "–"}</b></span>)}
+                </div>
+              )}
             </div>
             {w.steps.length > 0 && (
               <Table>

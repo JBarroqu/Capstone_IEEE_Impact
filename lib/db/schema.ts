@@ -22,6 +22,8 @@ export const wishes = pgTable("wishes", {
   archetype: text("archetype"),
   why: text("why"),
   priorAttempts: jsonb("prior_attempts").$type<{ chips: string[]; text?: string }>(),
+  /** Generated follow-up questions and the answers given (only for source "llm"). */
+  followUps: jsonb("follow_ups").$type<{ question: string; answer: string; note?: string }[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

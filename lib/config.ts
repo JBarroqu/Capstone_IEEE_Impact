@@ -18,6 +18,8 @@ export const config = {
   llmBudgetMs: Number(env("LLM_BUDGET_MS", "60000")),
   /** Classification runs while the student fills in the next screen; keyword matching answers if this runs out. */
   classifyBudgetMs: Number(env("CLASSIFY_BUDGET_MS", "20000")),
+  /** The student waits on a loading state for the follow-up questions; the fixed quiz is shown if this runs out. */
+  questionsBudgetMs: Number(env("QUESTIONS_BUDGET_MS", "20000")),
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",
   /** 1 = quick survey: pick one move, then rate it. 3 = full path (moves 1-3, optionally up to 5). */
   flowMoves: (env("FLOW_MOVES", "1") === "3" ? 3 : 1) as 1 | 3,

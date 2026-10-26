@@ -5,7 +5,7 @@ export const EVENT_NAMES = [
   "why_submitted", "prior_attempts_submitted", "quiz_answered", "archetype_assigned", "options_shown",
   "provider_fallback", "option_selected", "option_deselected", "move_locked", "options_rejected",
   "step_skipped", "options_feedback", "path_completed", "path_rated", "would_do_this_week",
-  "paid_willingness", "open_feedback", "start_over", "session_abandoned", "options_relaxed", "options_failed", "quiz_skipped",
+  "paid_willingness", "open_feedback", "start_over", "session_abandoned", "options_relaxed", "options_failed", "quiz_skipped", "questions_shown",
 ] as const;
 
 export const eventSchema = z.object({

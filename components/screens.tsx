@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BrandRow, Chip, Field, Heading, Hero, HeroBody, Page, PrimaryButton, Tag, TextButton, textareaCls, WishTile } from "./ui";
 import { wishes as wishCatalog } from "@/lib/engine/wishes";
-import { quiz, archetypeInfo } from "@/lib/archetypes";
-import type { Archetype, PriorAttempts } from "@/lib/types";
+import { archetypeInfo } from "@/lib/archetypes";
+import type { Archetype, PriorAttempts, Question, QuestionSet } from "@/lib/types";
 
 const SAMPLE = {
   wish: "Land a new-grad SWE offer",
@@ -146,27 +146,39 @@ export function WhyPrior({ wishText, onStartOver, onDone }: { wishText: string; 
   );
 }
 
-export function Quiz({ onStartOver, onAnswer, onDone, onSkip }: { onStartOver: () => void; onAnswer: (q: string, a: string) => void; onDone: (answers: Record<string, string>) => void; onSkip: (answers: Record<string, string>) => void }) {
+export function Quiz({ set, onStartOver, onAnswer, onDone, onSkip }: { set: QuestionSet | null; onStartOver: () => void; onAnswer: (q: Question, a: Question["answers"][number]) => void; onDone: (answers: Record<string, string>) => void; onSkip: (answers: Record<string, string>) => void }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const q = quiz[i];
-  const pick = (aid: string) => {
-    const next = { ...answers, [q.id]: aid };
+  if (!set) {
+    return (
+      <Page onStartOver={onStartOver}>
+        <Heading title="A few questions about your wish" sub="Writing three quick questions for your wish..." />
+        <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading questions">
+          <span className="h-7 w-4/5 rounded bg-chip" />
+          {[0, 1, 2].map((n) => <span key={n} className="h-[56px] rounded-[14px] border-[1.5px] border-line bg-white" />)}
+        </div>
+      </Page>
+    );
+  }
+  const qs = set.questions;
+  const q = qs[i];
+  const pick = (a: Question["answers"][number]) => {
+    const next = { ...answers, [q.id]: a.id };
     setAnswers(next);
-    onAnswer(q.id, aid);
-    if (i + 1 < quiz.length) setI(i + 1);
+    onAnswer(q, a);
+    if (i + 1 < qs.length) setI(i + 1);
     else onDone(next);
   };
   return (
     <Page onStartOver={onStartOver}>
       <div className="flex flex-col gap-1.5">
-        <div className="grid grid-cols-3 gap-1.5">{quiz.map((x, n) => <span key={x.id} className={`h-1.5 rounded-[3px] ${n <= i ? "bg-blue" : "bg-line"}`} />)}</div>
-        <span className="text-[13px] font-semibold text-muted">Question {i + 1} of {quiz.length}</span>
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${qs.length}, 1fr)` }}>{qs.map((x, n) => <span key={x.id} className={`h-1.5 rounded-[3px] ${n <= i ? "bg-blue" : "bg-line"}`} />)}</div>
+        <span className="text-[13px] font-semibold text-muted">Question {i + 1} of {qs.length}</span>
       </div>
       <Heading title={q.prompt} />
       <div className="flex flex-col gap-2.5">
         {q.answers.map((a) => (
-          <button key={a.id} type="button" onClick={() => pick(a.id)} className="min-h-[56px] rounded-[14px] border-[1.5px] border-line bg-white px-4 py-3.5 text-left text-base font-bold hover:border-blue">
+          <button key={a.id} type="button" onClick={() => pick(a)} className="min-h-[56px] rounded-[14px] border-[1.5px] border-line bg-white px-4 py-3.5 text-left text-base font-bold hover:border-blue">
             {a.label}
           </button>
         ))}

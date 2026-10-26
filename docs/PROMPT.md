@@ -131,7 +131,7 @@ The LLM writes options tailored to the student's exact wish, why, prior attempts
 **Interface.** Both providers implement the same `MoveProvider`:
 `getOptions(session, step, { excludeIds, rejectReason, rerollIndex }) → { moves: Move[3], meta }`. Keep all model-specific code in `lib/providers/ollama.ts` and `lib/providers/gemini.ts`; the rest of the app never knows which one ran.
 
-**Prompt** (`lib/prompts/moves.v3.ts`, versioned; bump the version on any edit and log it):
+**Prompt** (`lib/prompts/moves.v4.ts`, versioned; bump the version on any edit and log it):
 
 - System prompt: the audience is **senior ASU CS majors**; moves must be concrete, doable, and specific ("Ship a PR that fixes one `good first issue` in a repo you already use"), never vague ("Explore open source"). No invented ASU club names, real people, or prices (use `[PRICE]`). Explain the step semantics (move 1 = quick win under ~60 min; move 2 = builds on move 1; move 3 = the version they ship).
 - Context: wish text, confirmed type/focus/domain, why, prior attempts (with "rank these formats lower"), archetype, the moves already locked in earlier steps (titles + details), and for a reroll the rejected options + the reason chip/text ("too big" → go smaller, "don't want to pay" → all free, etc.).

@@ -2,6 +2,8 @@
 
 Researched 2026-10-26 for the generated follow-up questions plan (`docs/NEXT.md`).
 
+**Status (2026-10-26): recommended plan implemented.** The Gemini backend calls `interactions.create` (stateless, `store: false`), and the follow-up questions are generated statelessly through the model chain (`lib/prompts/questions.v1.ts`, `/api/questions`).
+
 ## Short answer
 
 Yes. There are two ways:
@@ -44,12 +46,18 @@ JSON.parse(turn2.output_text);
 - **Failover breaks the chain.** `runChain` moves to the next model when one is rate-limited or down: another Gemini model, Groq, OpenRouter or Ollama. An interaction id only works on Gemini. The non-Gemini backends would need the full history anyway, so we need the stateless path regardless.
 - **Free-tier retention is 1 day.** That's enough within one session, but nothing carries over to a later visit.
 - **The prompts are small.** About 1 to 2K tokens, so resending the context costs almost nothing, and on the free tier tokens aren't billed anyway.
-- **Our cache and repro depend on it.** `llm_cache` keys on the full request, and each generated move records its `prompt_version` and inputs. With server-side history the inputs that produced a result would live partly on Google's servers.
+- **Reproducibility depends on it.** Each generated move records its `prompt_version`, and the inputs that produced it are in our own database. With server-side history, part of those inputs would live on Google's servers.
 - **Privacy:** with `store: true`, students' text sits in Google's interaction store for a day on top of normal API processing. Our current calls don't create that stored record. If we adopt it, mention it in the consent text.
 
 **When to switch:** if the flow turns into a real back-and-forth chat (many turns, long history), or when a new model we need ships only on Interactions. In that case, add an `interactions` path in `lib/providers/gemini.ts` behind the same `Backend.generate` interface. It would chain only while the same Gemini model keeps answering, and fall back to sending the full history when the chain moves to another model.
 
-**Worth doing regardless:** Google says new features land on Interactions first, so moving the Gemini backend from `generateContent` to `interactions.create` (stateless, `store: false`) is a low-risk way to keep up. Only the request and response shapes change: `input` / `response_format` / `output_text`.
+**Implementation notes (from testing on 2026-10-26):**
+- `temperature` goes in `generation_config`. The SDK's type doesn't list it, but the API accepts it and range-checks it (2.0 max), so `lib/providers/gemini.ts` casts it.
+- **Turn the SDK's own retries off** (`retries: { strategy: "none" }`). With its defaults, a model returning 503 ("high demand") was retried for 231 s and ignored our abort signal, holding the request far past the time budget. Our chain already retries and fails over.
+- Pass the abort signal as `{ signal }` in the request options (`fetchOptions` is deprecated). An aborted call throws `APIUserAbortError`, which the backend maps to `AbortError`.
+- `gemini-2.5-flash` and `gemini-2.5-flash-lite` now return 404 ("no longer available to new users"). The chain marks them gone automatically.
+
+**Worth doing regardless (done):** Google says new features land on Interactions first, so moving the Gemini backend from `generateContent` to `interactions.create` (stateless, `store: false`) is a low-risk way to keep up. Only the request and response shapes change: `input` / `response_format` / `output_text`.
 
 ## Sources
 - [Interactions API overview](https://ai.google.dev/gemini-api/docs/interactions-overview)

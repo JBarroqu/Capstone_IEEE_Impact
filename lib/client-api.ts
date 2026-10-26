@@ -1,4 +1,5 @@
-import type { Domain, Focus, Move, OptionsMeta, OptionsRequest, WishType } from "./types";
+import type { Domain, Focus, Move, OptionsMeta, OptionsRequest, PriorAttempts, QuestionSet, WishType } from "./types";
+import { quiz } from "./archetypes";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const retryable = (status: number) => status === 0 || status === 429 || status >= 500;
@@ -51,4 +52,17 @@ export async function classify(wishText: string): Promise<Classified> {
   if (!r?.ok) return { wish: { focus: [], domains: [], type: "open_ended" }, log: { focus: [], domains: [], type: "open_ended", source: "none", fail_reason: "network" } };
   const { ok: _, focus, domains, type, ...rest } = r;
   return { wish: { focus, domains, type }, log: { focus, domains, type, ...rest } };
+}
+
+type QuestionsBody = { wishText: string; type: WishType; focus: Focus[]; domains: Domain[]; why?: string; prior: PriorAttempts };
+
+/** Follow-up questions for this wish. Never rejects: on a network error it returns the fixed quiz (source "fixed"). */
+export async function fetchQuestions(body: QuestionsBody): Promise<QuestionSet> {
+  const t0 = Date.now();
+  const r = await postJson("/api/questions", body, 2).catch(() => null);
+  if (r?.ok) { const { ok: _, ...set } = r; return set as QuestionSet; }
+  return {
+    source: "fixed", latencyMs: Date.now() - t0, failReason: "network",
+    questions: quiz.map((q) => ({ id: q.id, prompt: q.prompt, note: "", answers: q.answers.map((a) => ({ id: a.id, label: a.label })) })),
+  };
 }

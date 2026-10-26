@@ -37,10 +37,15 @@ async function main() {
       // Quiz answers live on the wish where the quiz was taken (only the first wish of a session).
       const answers = Object.fromEntries(se.filter((e) => e.name === "quiz_answered").map((e) => [e.payload.q, e.payload.answer]));
       const skipped = se.some((e) => e.name === "quiz_skipped");
+      // Generated questions differ per wish, so the columns hold "question → answer"; older rows used the fixed quiz.
       const quizCols: Record<string, string> = {};
-      quiz.forEach((q, i) => {
-        quizCols[`Q${i + 1}: ${q.prompt}`] = q.answers.find((a) => a.id === answers[q.id])?.label ?? (skipped ? "(skipped)" : "");
-      });
+      if (w.questions) {
+        w.questions.items.forEach((q, i) => { quizCols[`Question ${i + 1}`] = `${q.question} → ${q.answer ?? (w.questions!.skipped ? "(skipped)" : "–")}`; });
+      } else {
+        quiz.forEach((q, i) => {
+          quizCols[`Question ${i + 1}`] = `${q.prompt} → ${q.answers.find((a) => a.id === answers[q.id])?.label ?? (skipped ? "(skipped)" : "–")}`;
+        });
+      }
       const prior = wishById.get(w.wishId ?? "")?.priorAttempts;
       const rounds = w.steps.find((s) => s.step === 1)?.rounds ?? [];
       const picked = rounds.flatMap((r) => (r.outcome.kind === "picked" ? [r.outcome] : []))[0];
@@ -83,7 +88,7 @@ async function main() {
       "",
       `- **Why:** ${r["Why (their words)"]}`,
       `- **Already tried:** ${r["Already tried"]}`,
-      ...quiz.map((q, i) => `- **${q.prompt}** ${r[`Q${i + 1}: ${q.prompt}`] || "–"}`),
+      ...[1, 2, 3].flatMap((i) => (r[`Question ${i}`] ? [`- ${r[`Question ${i}`]}`] : [])),
       `- **Archetype:** ${r.Archetype || "–"} · **Kind of wish:** ${r["Kind of wish"] || "–"} · **Area:** ${r.Area || "–"}`,
       "",
       "**Options shown**",

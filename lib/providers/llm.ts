@@ -1,5 +1,5 @@
 import type { Move, OptionsRequest, OptionsResult, MoveProvider } from "../types";
-import { buildPrompt, MOVES_TEMPERATURE, movesJsonSchema, PROMPT_VERSION } from "../prompts/moves.v3";
+import { buildPrompt, MOVES_TEMPERATURE, movesJsonSchema, PROMPT_VERSION } from "../prompts/moves.v4";
 import { normalizeTitle, parseModelJson, repairMoves, ValidationError } from "./validate";
 import { config } from "../config";
 import { getBackends, type Backend } from "./backends";

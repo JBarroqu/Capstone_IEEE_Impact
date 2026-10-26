@@ -2,6 +2,17 @@
 
 ## Generated follow-up questions (replace the fixed archetype quiz)
 
+**Status (2026-10-26): built.**
+- `lib/prompts/questions.v1.ts` (`QUESTIONS_VERSION`), run through `runChain` from `/api/questions`.
+- Questions are generated when "A bit of context" is continued; a loading state shows while they're written.
+- The answers go into the moves prompt as `followUps` (`moves.v4`), are saved on `wishes.follow_ups`, and appear in the admin participant card and the export.
+- If every model fails, the fixed quiz is shown (`source: "fixed"`) and still assigns an archetype. Skip stays.
+- Events: `questions_shown{source,provider,model,prompt_version,latency_ms,tried,fail_reason,questions}`; `quiz_answered` now also carries `question`, `answer_text` and `source`.
+- Decisions taken for the open questions below: always 3 questions; archetypes are kept only for the fixed fallback, and generated answers go straight into the moves prompt.
+- Still to do: admin comparison of ratings for answered vs skipped and generated vs fixed.
+
+The original plan follows.
+
 **Now:** after the "A bit of context" screen (why + what they already tried), every student gets the same 3 fixed questions (`quiz` in `lib/archetypes.ts`). The answers map to one of 4 archetypes (builder, connector, planner, explorer), which steers the moves. Students can skip them (`quiz_skipped{answered}`).
 
 **Plan:** the model writes the 3 questions for each student, based on what they have told us so far, so the questions dig into what is actually unclear about this wish instead of asking a general personality quiz.

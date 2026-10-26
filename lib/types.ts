@@ -38,6 +38,21 @@ export type Move = {
 
 export type PriorAttempts = { chips: string[]; text?: string };
 
+/** One answered follow-up question; `note` is what the question was meant to find out (never shown to the student). */
+export type FollowUp = { question: string; answer: string; note?: string };
+
+export type Question = { id: string; prompt: string; answers: { id: string; label: string }[]; note: string };
+
+/**
+ * The follow-up questions shown after "A bit of context". "llm": written for this wish by the model chain.
+ * "fixed": the placeholder archetype quiz, used only when every model failed.
+ */
+export type QuestionSet = {
+  source: "llm" | "fixed";
+  questions: Question[];
+  provider?: string; model?: string; promptVersion?: string; latencyMs: number; tried?: string[]; failReason?: string;
+};
+
 /** What providers need to know about the student's wish. */
 export type WishContext = {
   wishText: string;
@@ -47,6 +62,8 @@ export type WishContext = {
   why?: string;
   prior: PriorAttempts;
   archetype?: Archetype;
+  /** Answers to the generated follow-up questions (empty when skipped or when the fixed quiz was used). */
+  followUps?: FollowUp[];
   /** Moves locked in at earlier steps, in order. */
   chosen: Move[];
 };
