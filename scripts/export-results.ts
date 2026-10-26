@@ -11,7 +11,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { getDb, schema } from "../lib/db/client";
 import { journeys, type EventRow, type WishRow } from "../lib/analytics";
 import { quiz, archetypeInfo } from "../lib/archetypes";
-import { catalogById } from "../lib/engine/catalog";
 import { toCsv } from "../lib/csv";
 import { DOMAIN_LABEL, FOCUS_LABEL, type Archetype, type Domain, type Focus } from "../lib/types";
 
@@ -25,7 +24,6 @@ async function main() {
   const wishes = (await db.select().from(schema.wishes)) as unknown as (WishRow & { priorAttempts: { chips: string[]; text?: string } | null })[];
   const gen = await db.select().from(schema.generatedMoves);
   const moveById = new Map<string, { title: string; detail: string; minutes?: number; cost?: string }>();
-  for (const [id, m] of catalogById) moveById.set(id, m);
   for (const g of gen) moveById.set(g.id, g.move as never);
   const title = (id: string) => moveById.get(id)?.title ?? id;
   const wishById = new Map(wishes.map((w) => [w.id, w]));

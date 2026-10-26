@@ -11,7 +11,7 @@ export type Backend = {
   provider: BackendProvider;
   model: string;
   remote: boolean;
-  generate(p: { system: string; user: string; schema: object }, signal: AbortSignal): Promise<string>;
+  generate(p: { system: string; user: string; schema: object; temperature?: number }, signal: AbortSignal): Promise<string>;
   /** Optional per-backend rate limit; resolves when a slot is free, rejects (QueueTimeout) if the wait would exceed maxWaitMs. */
   acquire?(maxWaitMs: number): Promise<void>;
 };

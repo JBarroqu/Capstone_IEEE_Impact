@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { ARCHETYPES, DOMAINS, FOCUSES, FORMATS, type Move, type Step } from "../types";
-import { normalizeTitle } from "../engine/select";
 
 export const rawMoveSchema = z.object({
   title: z.string().min(1),
@@ -18,6 +17,11 @@ export const rawResponseSchema = z.object({ moves: z.array(rawMoveSchema).min(3)
 export type RawMove = z.infer<typeof rawMoveSchema>;
 
 export class ValidationError extends Error {}
+
+/** Lowercase, letters/digits/spaces only: two titles that differ only in punctuation or case count as the same move. */
+export function normalizeTitle(t: string) {
+  return t.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+}
 
 export function parseModelJson(text: string): RawMove[] {
   let json: unknown;
@@ -59,7 +63,7 @@ export function toMove(raw: RawMove, step: Step): Move {
 
 /**
  * Turn raw model output into up to 3 clean moves: dedupe against `seenTitles`,
- * cap paid at 1. Caller backfills from catalog if fewer than 3 or fewer than 2 free.
+ * cap paid at 1. The caller asks the model again if fewer than 3 or fewer than 2 free remain.
  * Returns whether any repair happened.
  */
 export function repairMoves(raws: RawMove[], step: Step, seenTitles: Set<string>) {

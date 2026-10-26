@@ -1,8 +1,6 @@
 import type { Move, OptionsRequest, OptionsResult, MoveProvider } from "../types";
-import { buildPrompt, movesJsonSchema, PROMPT_VERSION } from "../prompts/moves.v2";
-import { parseModelJson, repairMoves, ValidationError } from "./validate";
-import { staticGetOptions, normalizeTitle } from "../engine/select";
-import { catalogById } from "../engine/catalog";
+import { buildPrompt, MOVES_TEMPERATURE, movesJsonSchema, PROMPT_VERSION } from "../prompts/moves.v3";
+import { normalizeTitle, parseModelJson, repairMoves, ValidationError } from "./validate";
 import { config } from "../config";
 import { getBackends, type Backend } from "./backends";
 import { health as sharedHealth, type Health } from "./health";
@@ -18,8 +16,6 @@ export type ChainOptions = {
   preferred?: () => Promise<string | null>;
   timeoutMs?: number;
   budgetMs?: number;
-  /** "static" substitutes catalog moves when the whole chain fails. Default "none": fail loudly instead. */
-  fallback?: "none" | "static";
 };
 
 /** Run any task through the model chain with production defaults (overridable for tests). */
@@ -31,33 +27,27 @@ export async function runChain<T>(task: LlmTask<T>, o: ChainOptions = {}): Promi
   });
 }
 
-/** Moves from the model chain. Every option is LLM-generated; nothing is substituted unless fallback is "static". */
+/** Moves from the model chain. Every option is generated; if the chain fails, LlmUnavailable reaches the student as a retry. */
 export function chainProvider(o: ChainOptions = {}): MoveProvider {
-  const name = config.provider === "static" ? "auto" : config.provider;
+  const name = config.provider;
   return {
     name,
     async getOptions(req: OptionsRequest): Promise<OptionsResult> {
-      const t0 = Date.now();
       const task: LlmTask<Move[]> = {
         schema: movesJsonSchema,
+        temperature: MOVES_TEMPERATURE,
         build: (hint) => buildPrompt(req, hint),
         parse: (text) => assemble(req, parseModelJson(text)),
       };
-      try {
-        const r = await runChain(task, o);
-        return {
-          moves: r.value,
-          meta: {
-            requestedProvider: name, usedProvider: r.backend.provider, model: r.backend.model, promptVersion: PROMPT_VERSION,
-            latencyMs: r.latencyMs, cacheHit: false, repaired: r.repaired || repairedIds.has(r.value), relaxed: false,
-            sources: r.value.map(() => "generated" as const), tried: r.tried.map((t) => `${t.id}:${t.reason}`),
-          },
-        };
-      } catch (e) {
-        if ((o.fallback ?? config.llmFallback) !== "static" || !(e instanceof LlmUnavailable)) throw e;
-        const s = staticGetOptions(req);
-        return { moves: s.moves, meta: { ...s.meta, requestedProvider: name, usedProvider: "static", promptVersion: PROMPT_VERSION, fallbackReason: e.reason, errorDetail: e.detail, latencyMs: Date.now() - t0 } };
-      }
+      const r = await runChain(task, o);
+      return {
+        moves: r.value,
+        meta: {
+          requestedProvider: name, usedProvider: r.backend.provider, model: r.backend.model, promptVersion: PROMPT_VERSION,
+          latencyMs: r.latencyMs, cacheHit: false, repaired: r.repaired || repairedIds.has(r.value), relaxed: false,
+          sources: r.value.map(() => "generated" as const), tried: r.tried.map((t) => `${t.id}:${t.reason}`),
+        },
+      };
     },
   };
 }
@@ -68,7 +58,7 @@ const repairedIds = new WeakSet<Move[]>();
 /** Clean up model output. Throws ValidationError (→ retry with the message as a hint) if it can't make 3 valid moves. */
 function assemble(req: OptionsRequest, raws: ReturnType<typeof parseModelJson>): Move[] {
   const seen = new Set<string>();
-  for (const id of req.excludeIds) { const t = catalogById.get(id)?.title; if (t) seen.add(normalizeTitle(t)); }
+  for (const t of req.excludeTitles ?? []) seen.add(normalizeTitle(t));
   for (const m of req.rejectedMoves ?? []) seen.add(normalizeTitle(m.title));
   for (const m of req.ctx.chosen) seen.add(normalizeTitle(m.title));
   const { moves, repaired } = repairMoves(raws, req.step, seen);

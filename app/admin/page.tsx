@@ -201,7 +201,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
         {!showNames && <input type="hidden" name="names" value="hide" />}
         <label className="flex flex-col gap-1 text-[13px] font-bold text-blue-dark">Provider
           <select name="provider" defaultValue={f.provider ?? ""} className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm font-medium text-ink">
-            <option value="">All</option><option value="auto">auto</option><option value="gemini">gemini</option><option value="ollama">ollama</option><option value="static">static</option>
+            <option value="">All</option><option value="auto">auto</option><option value="gemini">gemini</option><option value="ollama">ollama</option>
           </select>
         </label>
         <button className="min-h-[44px] rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark">Apply</button>
@@ -256,7 +256,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
             </tbody>
           </Table>
         )}
-        <p className="mt-2 text-[13px] text-muted">Rows come from each event&apos;s provider. LLM failed = option requests where the LLM never produced valid moves (student saw a retry prompt). Static fallback only happens if LLM_FALLBACK=static.</p>
+        <p className="mt-2 text-[13px] text-muted">Rows come from each event&apos;s provider. LLM failed = option requests where the LLM never produced valid moves (student saw a retry prompt). There is no fallback to fixed moves.</p>
       </Section>
 
       <Section title="Model usage">

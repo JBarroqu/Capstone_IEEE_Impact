@@ -5,7 +5,7 @@ import { track } from "@/lib/track";
 import { OptionsError, type OptionsResponse } from "@/lib/client-api";
 import type { Move, OptionsMeta, WishContext } from "@/lib/types";
 
-export type LoadOptions = (a: { step: number; chosen: Move[]; excludeIds: string[]; rejectReason?: { chip?: string; text?: string }; rejectedMoves?: Move[]; rerollIndex: number }) => Promise<OptionsResponse>;
+export type LoadOptions = (a: { step: number; chosen: Move[]; excludeIds: string[]; excludeTitles?: string[]; rejectReason?: { chip?: string; text?: string }; rejectedMoves?: Move[]; rerollIndex: number }) => Promise<OptionsResponse>;
 
 const REJECT_CHIPS = ["Too big", "Too small", "Not my style", "Already done this", "Don't want to pay", "Other"];
 const SUB: Record<number, string> = {
@@ -44,7 +44,7 @@ export function Pick({ step, totalSteps, wishText, chosen, load, onLocked, onSki
     lastReject.current = reject || rejectedMoves ? { reason: reject, moves: rejectedMoves } : null;
     setMoves(null); setError(false); setSelected(null);
     try {
-      const res = await load({ step, chosen, excludeIds: excluded.current, rejectReason: reject, rejectedMoves, rerollIndex: reroll });
+      const res = await load({ step, chosen, excludeIds: excluded.current, excludeTitles: allShown.current.map((m) => m.title).slice(-30), rejectReason: reject, rejectedMoves, rerollIndex: reroll });
       if (!mounted.current) return;
       const meta: OptionsMeta = res.meta;
       excluded.current = [...excluded.current, ...res.moves.map((m) => m.id)];

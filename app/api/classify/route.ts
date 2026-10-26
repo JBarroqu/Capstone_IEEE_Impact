@@ -25,19 +25,16 @@ export async function POST(req: Request) {
   if (s) return s;
   const text = p.data.wishText;
   const t0 = Date.now();
-  if (config.provider !== "static") {
-    try {
-      const r = await runChain({ schema: classifyJsonSchema, build: (hint) => buildClassifyPrompt(text, hint), parse: parseClassify }, { budgetMs: config.classifyBudgetMs });
-      return NextResponse.json({
-        ok: true, ...r.value, source: "llm", provider: r.backend.provider, model: r.backend.model, prompt_version: CLASSIFY_VERSION,
-        latency_ms: r.latencyMs, tried: r.tried.map((t) => `${t.id}:${t.reason}`),
-      });
-    } catch (e) {
-      console.error("classify failed, using keywords:", e instanceof Error ? e.message : e);
-      return NextResponse.json({ ok: true, ...keywords(text), source: "keywords", fail_reason: e instanceof LlmUnavailable ? e.reason : "error", latency_ms: Date.now() - t0 });
-    }
+  try {
+    const r = await runChain({ schema: classifyJsonSchema, build: (hint) => buildClassifyPrompt(text, hint), parse: parseClassify }, { budgetMs: config.classifyBudgetMs });
+    return NextResponse.json({
+      ok: true, ...r.value, source: "llm", provider: r.backend.provider, model: r.backend.model, prompt_version: CLASSIFY_VERSION,
+      latency_ms: r.latencyMs, tried: r.tried.map((t) => `${t.id}:${t.reason}`),
+    });
+  } catch (e) {
+    console.error("classify failed, using keywords:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ ok: true, ...keywords(text), source: "keywords", fail_reason: e instanceof LlmUnavailable ? e.reason : "error", latency_ms: Date.now() - t0 });
   }
-  return NextResponse.json({ ok: true, ...keywords(text), source: "keywords", latency_ms: Date.now() - t0 });
 }
 
 function keywords(text: string) {

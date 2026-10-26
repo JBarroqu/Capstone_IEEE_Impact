@@ -24,12 +24,12 @@ export function geminiBackend(model: string): Backend {
   return {
     id: `gemini:${model}`, provider: "gemini", model, remote: true,
     acquire: (w) => queue.acquire(w),
-    async generate({ system, user, schema }, signal) {
+    async generate({ system, user, schema, temperature = 0.4 }, signal) {
       try {
         const res = await client().models.generateContent({
           model,
           contents: user,
-          config: { systemInstruction: system, temperature: 0.4, responseMimeType: "application/json", responseJsonSchema: schema, abortSignal: signal },
+          config: { systemInstruction: system, temperature, responseMimeType: "application/json", responseJsonSchema: schema, abortSignal: signal },
         });
         return res.text ?? "";
       } catch (e) {

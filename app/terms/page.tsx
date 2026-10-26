@@ -1,4 +1,4 @@
-import { config, consentCopy } from "@/lib/config";
+import { consentCopy } from "@/lib/config";
 import { remoteServices } from "@/lib/providers/backends";
 import { BrandRow } from "@/components/ui";
 
@@ -7,7 +7,7 @@ export const metadata = { title: "Study terms - Wish Engine" };
 
 /** Full consent text, linked from the welcome screen ("By continuing you agree to the study terms"). */
 export default function Terms() {
-  const remote = config.provider === "static" ? [] : remoteServices();
+  const remote = remoteServices();
   return (
     <div className="mx-auto flex min-h-dvh max-w-[600px] flex-col gap-5 px-5 pb-10 pt-4">
       <BrandRow />

@@ -38,7 +38,7 @@ export default function Flow({ flowMoves }: { flowMoves: 1 | 3 }) {
     wishText: w.text, type: w.type, focus: w.focus, domains: w.domains, why: w.why, prior: w.prior, archetype, chosen,
   });
   const body = (w: Wish, a: Parameters<LoadOptions>[0]) => ({
-    sessionId: session?.sessionId, wishId: w.id, step: a.step, rerollIndex: a.rerollIndex, excludeIds: a.excludeIds,
+    sessionId: session?.sessionId, wishId: w.id, step: a.step, rerollIndex: a.rerollIndex, excludeIds: a.excludeIds, excludeTitles: a.excludeTitles,
     rejectReason: a.rejectReason, rejectedMoves: a.rejectedMoves, ctx: ctx(w, a.chosen),
   });
 

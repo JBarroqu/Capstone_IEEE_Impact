@@ -33,7 +33,7 @@ Per-IP limits are loose because a lab can share one campus NAT address. The glob
 | 5 | Unbounded arrays and strings in the prompt, unbounded event payloads | `.max()` on every array and string. Body caps of 1 KB (login, session), 4 KB (classify), 8 KB (wish), 32 KB (options), 64 KB (events). |
 | 6 | CSV formula injection | Text cells starting with `= + - @`, tab or CR get a leading `'`. Numbers are untouched. |
 | 7 | "Delete TEST" matched "Tester" etc. | Case-sensitive `^TEST[ _-]`. Two steps: the admin sees the count and the codes, then confirms. The delete is refused if the count changed in between, and runs in a transaction. |
-| 8 | Bad cached move sets replayed | Admin Models panel: "Clear cached moves". |
+| 8 | Bad cached move sets replayed | The cache was removed (moves.v3): every request is generated fresh, so a bad set is never shown to anyone else. |
 | 9 | No security headers | CSP `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy`. No `X-Powered-By`. No HSTS, on purpose: students use http on 3010. |
 | 10 | Hard-coded DB password | `POSTGRES_PASSWORD` from `.env` (default `wish`). It only applies when the `pgdata` volume is first created. |
 | 11 | Free-tier daily quota retried every 30 s | A 429 naming a per-day quota puts that model on cooldown until midnight Pacific, when the quota resets. The chain moves on to the other models. |
@@ -46,7 +46,7 @@ The front page no longer shows the consent text. It sits at `/terms`, linked fro
 
 - **Gemini free tier.** Google may use free-tier prompts and responses to improve its products, and humans may review them. `/terms` says the text "may be reviewed by that service". Check this against the IRB protocol. Daily caps still apply. Mitigations: model failover, the daily cooldown (11), and the Groq/OpenRouter/Ollama backups.
 - **In-memory state** (rate buckets, model health, the Gemini RPM queue) lives in one process and resets on restart. This is correct for the single container we run. Move it to Postgres or Redis before running more than one replica.
-- **Prompt injection.** Model output is schema-validated and rendered as text, so the worst case is an off-topic move. Clear the cache (8) if a bad set gets cached.
+- **Prompt injection.** Model output is schema-validated and rendered as text, so the worst case is an off-topic move shown to the student who typed the input.
 - **No foreign keys** between `sessions`, `wishes` and `events`. With the session cookie (2) no new orphans can be written, and adding foreign keys would fight the out-of-order wish upserts.
 - **`npm run dev:lan` has no proxy**, so IP limits there can be dodged by faking the header. Cookie and global limits still apply. Use docker compose for real sessions.
 - **Events sent by beacon on page close** are not retried. The browser gives no result to retry on.

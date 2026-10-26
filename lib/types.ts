@@ -57,6 +57,8 @@ export type OptionsRequest = {
   ctx: WishContext;
   step: Step;
   excludeIds: string[];
+  /** Titles already shown for this step, so the model does not repeat them on a reroll. */
+  excludeTitles?: string[];
   rejectReason?: RejectReason;
   rejectedMoves?: Move[];
   rerollIndex: number;
@@ -70,13 +72,15 @@ export type OptionsMeta = {
   model?: string;
   promptVersion?: string;
   latencyMs: number;
+  /** Always false since the cache was removed (moves.v3); kept for options_shown.cache_hit. */
   cacheHit: boolean;
   repaired: boolean;
   relaxed: boolean;
   /** Raw error text for debugging (llm:check); not logged to events. */
   errorDetail?: string;
   fallbackReason?: "timeout" | "invalid_json" | "rate_limited" | "error";
-  sources: ("catalog" | "generated")[];
+  /** Always "generated"; kept in options_shown so older rows (which could say "catalog") still read the same way. */
+  sources: "generated"[];
   /** Models that failed before the one that answered, as "provider:model:reason". */
   tried?: string[];
 };
@@ -84,6 +88,6 @@ export type OptionsMeta = {
 export type OptionsResult = { moves: Move[]; meta: OptionsMeta };
 
 export interface MoveProvider {
-  name: "static" | "ollama" | "gemini" | "auto";
+  name: "ollama" | "gemini" | "auto";
   getOptions(req: OptionsRequest): Promise<OptionsResult>;
 }

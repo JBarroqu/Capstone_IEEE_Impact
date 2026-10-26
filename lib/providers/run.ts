@@ -5,7 +5,7 @@ import { QueueTimeout } from "./queue";
 import { ValidationError } from "./validate";
 
 /** A prompt the chain can answer: build it (with a fix-up hint on retry), then parse/validate the text (throw ValidationError to retry). */
-export type LlmTask<T> = { schema: object; build(hint?: string): { system: string; user: string }; parse(text: string): T };
+export type LlmTask<T> = { schema: object; build(hint?: string): { system: string; user: string }; parse(text: string): T; temperature?: number };
 
 export type Tried = { id: string; reason: FailReason };
 export type RunResult<T> = { value: T; backend: Backend; latencyMs: number; tried: Tried[]; repaired: boolean };
@@ -51,7 +51,7 @@ export async function runLlm<T>(task: LlmTask<T>, o: RunOptions): Promise<RunRes
       const ts = Date.now();
       try {
         await b.acquire?.(Math.min(o.queueWaitMs ?? 3000, left()));
-        const text = await b.generate({ ...task.build(hint), schema: task.schema }, ctrl.signal);
+        const text = await b.generate({ ...task.build(hint), schema: task.schema, temperature: task.temperature }, ctrl.signal);
         const value = task.parse(text);
         o.health.ok(b.id, Date.now() - ts);
         return { value, backend: b, latencyMs: Date.now() - t0, tried, repaired: attempt > 0 };

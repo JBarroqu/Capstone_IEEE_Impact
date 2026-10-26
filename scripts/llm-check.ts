@@ -54,7 +54,7 @@ async function main() {
     const r = await getProvider().getOptions(req);
     console.log("");
     r.moves.forEach((m, i) => console.log(`${i + 1}. [${m.cost}, ${m.minutes}m, ${m.format}] ${m.title}\n   ${m.detail}`));
-    const valid = r.moves.length === 3 && r.moves.every((m) => rawMoveSchema.safeParse(m).success) && r.meta.usedProvider !== "static";
+    const valid = r.moves.length === 3 && r.moves.every((m) => rawMoveSchema.safeParse(m).success);
     console.log(`\nmoves by ${r.meta.usedProvider}:${r.meta.model} in ${r.meta.latencyMs}ms repaired=${r.meta.repaired}${r.meta.tried?.length ? ` skipped=${r.meta.tried.join(", ")}` : ""}`);
     console.log(`validation: ${valid ? "PASS" : "FAIL"}`);
     ok &&= valid;

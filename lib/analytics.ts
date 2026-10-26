@@ -8,6 +8,7 @@ export type WishRow = {
   id: string; sessionId: string; text: string; type: string | null; focus: string[] | null; domains: string[] | null;
   archetype: string | null; why: string | null;
 };
+/** source "catalog" only appears on rows logged before moves.v3, when a hand-written catalog still existed. */
 export type MoveMeta = Pick<Move, "id" | "title" | "step" | "focus" | "cost"> & { source: "catalog" | "generated" };
 
 const median = (a: number[]) => {

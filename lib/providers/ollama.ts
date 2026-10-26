@@ -14,13 +14,13 @@ export async function listOllamaModels(): Promise<string[]> {
 export function ollamaBackend(model: string): Backend {
   return {
     id: `ollama:${model}`, provider: "ollama", model, remote: false,
-    async generate({ system, user, schema }, signal) {
+    async generate({ system, user, schema, temperature = 0.4 }, signal) {
       const res = await fetch(`${config.ollamaUrl}/api/chat`, {
         method: "POST",
         signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model, stream: false, format: schema, options: { temperature: 0.4 },
+          model, stream: false, format: schema, options: { temperature },
           messages: [{ role: "system", content: system }, { role: "user", content: user }],
         }),
       });

@@ -1,44 +1,21 @@
-import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { config } from "../config";
-import { PROMPT_VERSION } from "../prompts/moves.v2";
-import { staticGetOptions, normalizeTitle } from "../engine/select";
 import type { Move, MoveProvider, OptionsRequest, OptionsResult } from "../types";
 import { chainProvider } from "./llm";
 
-export const staticProvider: MoveProvider = {
-  name: "static",
-  async getOptions(req) { return staticGetOptions(req); },
-};
-
-/** static = the deliberate control condition; anything else = the model chain (see backends.ts). */
-export function getProvider(name = config.provider): MoveProvider {
-  return name === "static" ? staticProvider : chainProvider();
+/** Every provider is the model chain (see backends.ts); MOVE_PROVIDER only narrows which services it uses. */
+export function getProvider(): MoveProvider {
+  return chainProvider();
 }
 
 export type Store = {
-  cacheGet(key: string): Promise<Move[] | null>;
-  cacheSet(key: string, moves: Move[], provider: string, model?: string): Promise<void>;
   persistGenerated(req: OptionsRequest, moves: Move[], meta: OptionsResult["meta"]): Promise<void>;
 };
 
 export const dbStore: Store = {
-  async cacheGet(key) {
-    const { getDb, schema } = await import("../db/client");
-    const rows = await getDb().select().from(schema.llmCache).where(eq(schema.llmCache.key, key)).limit(1);
-    return (rows[0]?.moves as Move[]) ?? null;
-  },
-  async cacheSet(key, moves, provider, model) {
-    const { getDb, schema } = await import("../db/client");
-    await getDb().insert(schema.llmCache).values({ key, moves, provider, model }).onConflictDoNothing();
-  },
   async persistGenerated(req, moves, meta) {
     if (!req.sessionId) return;
-    const gen = moves.filter((m) => m.id.startsWith("gen-"));
-    if (!gen.length) return;
     const { getDb, schema } = await import("../db/client");
     await getDb().insert(schema.generatedMoves).values(
-      gen.map((m) => ({
+      moves.map((m) => ({
         id: m.id, sessionId: req.sessionId!, wishId: req.wishId ?? null, step: req.step,
         move: m as unknown as Record<string, unknown>, provider: meta.usedProvider, model: meta.model,
         promptVersion: meta.promptVersion,
@@ -47,48 +24,12 @@ export const dbStore: Store = {
   },
 };
 
-export function cacheKey(req: OptionsRequest, provider: string) {
-  const { ctx } = req;
-  const parts = [
-    normalizeTitle(ctx.wishText), [...ctx.focus].sort(), [...ctx.domains].sort(), ctx.archetype ?? "",
-    req.step, [...req.excludeIds].sort(), ctx.chosen.map((m) => m.id), req.rejectReason?.chip ?? "",
-    PROMPT_VERSION, provider, ctx.why ?? "", ctx.prior,
-  ];
-  return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
-}
-
-/** Entry point used by the API: provider + cache + persistence. Throws LlmUnavailable when the LLM fails. */
-export async function getOptions(
-  req: OptionsRequest,
-  opts: { provider?: MoveProvider; store?: Store; cache?: boolean } = {},
-): Promise<OptionsResult> {
-  const provider = opts.provider ?? getProvider();
-  const store = opts.store ?? dbStore;
-  const useCache = (opts.cache ?? config.llmCache) && provider.name !== "static";
-  const key = cacheKey(req, provider.name);
-  const t0 = Date.now();
-
-  if (useCache) {
-    try {
-      const hit = await store.cacheGet(key);
-      if (hit?.length === 3) {
-        return {
-          moves: hit,
-          meta: {
-            requestedProvider: provider.name, usedProvider: provider.name, model: "cache",
-            promptVersion: PROMPT_VERSION, latencyMs: Date.now() - t0, cacheHit: true, repaired: false,
-            relaxed: false, sources: hit.map((m) => (m.id.startsWith("gen-") ? "generated" : "catalog")),
-          },
-        };
-      }
-    } catch { /* cache is best-effort */ }
-  }
-
-  // Throws LlmUnavailable if the LLM cannot produce options (unless LLM_FALLBACK=static, handled inside the provider).
-  const result: OptionsResult = await provider.getOptions(req);
-  if (result.meta.usedProvider !== "static") {
-    if (useCache) store.cacheSet(key, result.moves, result.meta.usedProvider, result.meta.model).catch(() => {});
-    store.persistGenerated(req, result.moves, result.meta).catch(() => {});
-  }
+/**
+ * Entry point used by the API. Every request goes to the model (no cache), so two students with the same wish get
+ * their own options. Throws LlmUnavailable when the chain fails; the student then sees a retry.
+ */
+export async function getOptions(req: OptionsRequest, opts: { provider?: MoveProvider; store?: Store } = {}): Promise<OptionsResult> {
+  const result = await (opts.provider ?? getProvider()).getOptions(req);
+  (opts.store ?? dbStore).persistGenerated(req, result.moves, result.meta).catch(() => {});
   return result;
 }

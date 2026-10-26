@@ -94,7 +94,6 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
     if (!r?.ok) setMsg("Request failed.");
     else if (r.results) setMsg(`${r.results.filter((x: { ok: boolean }) => x.ok).length} of ${r.results.length} models answered.`);
     else if (typeof r.count === "number") setMsg(`Found ${r.count} models.`);
-    else if (typeof r.cleared === "number") setMsg(`Cleared ${r.cleared} cached move set(s).`);
     router.refresh();
   };
   const pill = { ok: "bg-ok-bg text-ok", untested: "bg-chip text-muted", cooling: "bg-warn-bg text-warn", gone: "bg-[#FBE9E7] text-[#B3261E]" };
@@ -109,7 +108,6 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
         </label>
         <button type="button" disabled={!!busy} onClick={() => post({ action: "test" }, "test")} className="min-h-[44px] rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark disabled:opacity-50">{busy === "test" ? "Testing..." : "Test all"}</button>
         <button type="button" disabled={!!busy} onClick={() => post({ action: "refresh" }, "refresh")} className="min-h-[44px] rounded-full bg-chip px-4 text-sm font-bold hover:bg-tint disabled:opacity-50">{busy === "refresh" ? "Looking..." : "Re-discover models"}</button>
-        <button type="button" disabled={!!busy} onClick={() => post({ action: "clear-cache" }, "clear")} title="Cached move sets are replayed for identical inputs; clear after a bad or off-topic set." className="min-h-[44px] rounded-full bg-chip px-4 text-sm font-bold hover:bg-tint disabled:opacity-50">{busy === "clear" ? "Clearing..." : "Clear cached moves"}</button>
         {msg && <span role="status" className="text-sm font-semibold text-muted">{msg}</span>}
       </div>
       {rows.length === 0 ? <p className="m-0 text-[#B3261E]">No models available. Set GEMINI_API_KEY (or GROQ_API_KEY / OPENROUTER_API_KEY), or start Ollama.</p> : (

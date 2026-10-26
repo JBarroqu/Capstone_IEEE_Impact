@@ -1,6 +1,5 @@
 import { and, gte, lte, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "./db/client";
-import { catalog } from "./engine/catalog";
 import type { EventRow, MoveMeta, WishRow } from "./analytics";
 
 export type Filters = { from?: string; to?: string; participant?: string; provider?: string };
@@ -26,9 +25,7 @@ export async function loadData(f: Filters) {
     ? ((await db.select().from(schema.wishes).where(inArray(schema.wishes.id, wishIds))) as unknown as WishRow[])
     : [];
 
-  const meta = new Map<string, MoveMeta>(
-    catalog.map((m) => [m.id, { id: m.id, title: m.title, step: m.step, focus: m.focus, cost: m.cost, source: "catalog" as const }]),
-  );
+  const meta = new Map<string, MoveMeta>();
   const gen = await db.select().from(schema.generatedMoves);
   for (const g of gen) {
     const m = g.move as any;

@@ -21,9 +21,8 @@ docker compose down -v           # stop and delete all data
 ## Models (`MOVE_PROVIDER`)
 - `auto` (default): every available model with automatic failover. Gemini models are discovered from the API (no model setting needed); Groq / OpenRouter join if `GROQ_API_KEY` / `OPENROUTER_API_KEY` is set; a local Ollama joins if it is running.
 - `gemini` / `ollama`: only that service.
-- `static`: rule-based catalog only; use it only as a deliberate control condition.
 
-A model that errors or takes longer than `LLM_TIMEOUT_MS` is skipped for the next one and put on cooldown. If every model fails (or `LLM_BUDGET_MS` runs out), the student sees a "Try again" message and `options_failed` is logged; static moves are never substituted unless `LLM_FALLBACK=static`. The admin page's Models panel shows each model's status and lets you choose which to try first.
+A model that errors or takes longer than `LLM_TIMEOUT_MS` is skipped for the next one and put on cooldown. If every model fails (or `LLM_BUDGET_MS` runs out), the student sees a "Try again" message and `options_failed` is logged; there are no fixed moves to substitute. Every request goes to the model (no cache), so students with the same wish get their own options. The admin page's Models panel shows each model's status and lets you choose which to try first.
 
 `npm run llm:check -- "some wish" --all` prints the model chain, pings every model, and generates one sample set of moves.
 

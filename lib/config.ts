@@ -1,10 +1,10 @@
 /** auto: every available model (Gemini, then Groq/OpenRouter if keyed, then local Ollama). gemini/ollama: only that service. */
-export type ProviderName = "auto" | "static" | "ollama" | "gemini";
+export type ProviderName = "auto" | "ollama" | "gemini";
 
 const env = (k: string, d = "") => process.env[k] ?? d;
 
 export const config = {
-  provider: (["auto", "static", "ollama", "gemini"].includes(env("MOVE_PROVIDER")) ? env("MOVE_PROVIDER") : "auto") as ProviderName,
+  provider: (["auto", "ollama", "gemini"].includes(env("MOVE_PROVIDER")) ? env("MOVE_PROVIDER") : "auto") as ProviderName,
   geminiKey: env("GEMINI_API_KEY"),
   /** Optional comma list to pin Gemini models in order; empty = discover from the API. */
   geminiModels: env("GEMINI_MODELS"),
@@ -18,9 +18,6 @@ export const config = {
   llmBudgetMs: Number(env("LLM_BUDGET_MS", "60000")),
   /** Classification runs while the student fills in the next screen; keyword matching answers if this runs out. */
   classifyBudgetMs: Number(env("CLASSIFY_BUDGET_MS", "20000")),
-  /** "none" (default): if the LLM fails, show an error + retry. "static": silently substitute catalog moves. */
-  llmFallback: (env("LLM_FALLBACK", "none") === "static" ? "static" : "none") as "none" | "static",
-  llmCache: env("LLM_CACHE", "true") !== "false",
   /** Per-IP and per-session request limits on the API (lib/rate-limit.ts). RATE_LIMIT=false turns them off for load tests. */
   rateLimit: env("RATE_LIMIT", "true") !== "false",
   shufflePositions: env("SHUFFLE_POSITIONS") === "true",

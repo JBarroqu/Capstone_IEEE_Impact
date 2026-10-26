@@ -18,6 +18,7 @@ const body = z.object({
   sessionId: z.string().uuid().optional(), wishId: z.string().uuid().optional(),
   step: z.number().int().min(1).max(5), rerollIndex: z.number().int().min(0).default(0),
   excludeIds: z.array(z.string().max(80)).max(100).default([]),
+  excludeTitles: z.array(z.string().max(200)).max(30).optional(),
   rejectReason: z.object({ chip: z.string().max(60).optional(), text: z.string().max(500).optional() }).optional(),
   rejectedMoves: z.array(move).max(3).optional(),
   ctx: z.object({

@@ -7,6 +7,7 @@ import { getOptions, type Store } from "@/lib/providers";
 import { genId } from "@/lib/providers/validate";
 import { RateQueue, QueueTimeout } from "@/lib/providers/queue";
 import type { OptionsRequest } from "@/lib/types";
+import { buildPrompt, MOVES_TEMPERATURE } from "@/lib/prompts/moves.v3";
 
 const req: OptionsRequest = {
   ctx: { wishText: "Pass technical interviews", type: "fixed", focus: ["goal"], domains: ["career"], prior: { chips: [] }, chosen: [] },
@@ -18,12 +19,12 @@ const mv = (title: string, cost: "free" | "paid" = "free") => ({
 const json = (...m: ReturnType<typeof mv>[]) => JSON.stringify({ moves: m });
 type Gen = (signal: AbortSignal) => Promise<string>;
 const backend = (id: string, gen: Gen): Backend => ({ id: `gemini:${id}`, provider: "gemini", model: id, remote: true, generate: (_, signal) => gen(signal) });
-const chain = (backends: Backend[], opts: { timeoutMs?: number; budgetMs?: number; fallback?: "none" | "static"; health?: Health } = {}) =>
-  chainProvider({ backends: async () => backends, preferred: async () => null, health: opts.health ?? new Health(), timeoutMs: opts.timeoutMs ?? 500, budgetMs: opts.budgetMs ?? 5000, fallback: opts.fallback });
+const chain = (backends: Backend[], opts: { timeoutMs?: number; budgetMs?: number; health?: Health } = {}) =>
+  chainProvider({ backends: async () => backends, preferred: async () => null, health: opts.health ?? new Health(), timeoutMs: opts.timeoutMs ?? 500, budgetMs: opts.budgetMs ?? 5000 });
 // One backend whose nth call returns gen(n).
-const provider = (gen: (n: number) => Promise<string>, timeout = 500, opts: { fallback?: "none" | "static" } = {}) => {
+const provider = (gen: (n: number) => Promise<string>, timeout = 500) => {
   let n = 0;
-  return chain([backend("test-model", () => gen(n++))], { timeoutMs: timeout, ...opts });
+  return chain([backend("test-model", () => gen(n++))], { timeoutMs: timeout });
 };
 const hang: Gen = (signal) => new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("abort"), { name: "AbortError" }))));
 const good = (p = "Ok") => json(mv(`${p} one`), mv(`${p} two`), mv(`${p} three`));
@@ -46,12 +47,6 @@ describe("LLM provider", () => {
     const p = provider(async () => "nope");
     await expect(p.getOptions(req)).rejects.toMatchObject({ reason: "invalid_json" });
     await expect(p.getOptions(req)).rejects.toBeInstanceOf(LlmUnavailable);
-  });
-  it("same failure with LLM_FALLBACK=static → catalog moves, flagged as static", async () => {
-    const r = await provider(async () => "nope", 500, { fallback: "static" }).getOptions(req);
-    expect(r.meta.usedProvider).toBe("static");
-    expect(r.meta.fallbackReason).toBe("invalid_json");
-    expect(r.moves).toHaveLength(3);
   });
   it("2 paid → too few usable moves → retried with a hint until valid", async () => {
     let n = 0;
@@ -130,22 +125,33 @@ describe("LLM provider", () => {
   });
 });
 
-describe("cache + rate queue", () => {
-  it("second identical request is a cache hit", async () => {
-    const mem = new Map<string, unknown>();
-    const store: Store = {
-      cacheGet: async (k) => (mem.get(k) as never) ?? null,
-      cacheSet: async (k, m) => { mem.set(k, m); },
-      persistGenerated: async () => {},
-    };
+describe("no fixed moves + rate queue", () => {
+  it("every identical request goes to the model (no cache)", async () => {
+    const store: Store = { persistGenerated: async () => {} };
     const gen = vi.fn(async () => json(mv("One a"), mv("Two b"), mv("Three c")));
     const p = chain([backend("m", gen)]);
-    const a = await getOptions(req, { provider: p, store, cache: true });
-    await new Promise((r) => setTimeout(r, 10));
-    const b = await getOptions(req, { provider: p, store, cache: true });
-    expect(gen).toHaveBeenCalledTimes(1);
-    expect(b.meta.cacheHit).toBe(true);
-    expect(b.moves.map((m) => m.id)).toEqual(a.moves.map((m) => m.id));
+    await getOptions(req, { provider: p, store });
+    const b = await getOptions(req, { provider: p, store });
+    expect(gen).toHaveBeenCalledTimes(2);
+    expect(b.meta.cacheHit).toBe(false);
+  });
+  it("prompt carries the style example but no ready-made moves for real wishes", () => {
+    const { user, system } = buildPrompt({ ...req, ctx: { ...req.ctx, wishText: "Learn DevOps" } });
+    expect(user).toContain("Style example");
+    expect(`${system}\n${user}`).not.toMatch(/AWS|Azure|GCP|cloud lane|gold-standard|Worked path|Catalog/i);
+  });
+  it("titles already shown are listed in the prompt and dropped from the answer", async () => {
+    const r = { ...req, excludeTitles: ["Two b"] };
+    expect(buildPrompt(r).user).toContain("Two b");
+    let n = 0;
+    const out = await provider(async () => (n++ === 0 ? json(mv("One a"), mv("Two b"), mv("Three c")) : json(mv("One a"), mv("Four d"), mv("Three c")))).getOptions(r);
+    expect(out.moves.map((m) => m.title)).not.toContain("Two b");
+  });
+  it("moves are generated at MOVES_TEMPERATURE", async () => {
+    const seen: (number | undefined)[] = [];
+    const b: Backend = { id: "gemini:t", provider: "gemini", model: "t", remote: true, generate: async (p) => { seen.push(p.temperature); return good(); } };
+    await chain([b]).getOptions(req);
+    expect(seen).toEqual([MOVES_TEMPERATURE]);
   });
   it("queue rejects when wait exceeds budget", async () => {
     const q = new RateQueue(1);

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { BrandRow, Chip, Field, Heading, Hero, HeroBody, Page, PrimaryButton, Tag, TextButton, textareaCls, WishTile } from "./ui";
-import { wishes as wishCatalog } from "@/lib/engine/catalog";
+import { wishes as wishCatalog } from "@/lib/engine/wishes";
 import { quiz, archetypeInfo } from "@/lib/archetypes";
 import type { Archetype, PriorAttempts } from "@/lib/types";
 

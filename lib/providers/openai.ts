@@ -38,13 +38,13 @@ export function openAiBackend(p: OpenAiCompat, model: string): Backend {
   const c = OPENAI_COMPAT[p];
   return {
     id: `${p}:${model}`, provider: p, model, remote: true,
-    async generate({ system, user, schema }, signal) {
+    async generate({ system, user, schema, temperature = 0.4 }, signal) {
       const res = await fetch(`${c.base}/chat/completions`, {
         method: "POST",
         signal,
         headers: { "content-type": "application/json", authorization: `Bearer ${c.key()}` },
         body: JSON.stringify({
-          model, temperature: 0.4, response_format: { type: "json_object" },
+          model, temperature, response_format: { type: "json_object" },
           // These APIs don't all accept a JSON schema, so it goes in the prompt.
           messages: [{ role: "system", content: `${system}\n\nReturn a JSON object matching this JSON schema:\n${JSON.stringify(schema)}` }, { role: "user", content: user }],
         }),
