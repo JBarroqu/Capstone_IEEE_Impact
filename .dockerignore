@@ -8,3 +8,5 @@ node_modules
 next-env.d.ts
 Dockerfile
 docker-compose.yml
+backend/.venv
+backend/**/__pycache__

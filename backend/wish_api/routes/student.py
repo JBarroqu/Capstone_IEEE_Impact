@@ -9,7 +9,6 @@ from .. import db
 from ..archetypes import quiz
 from ..config import CONSENT_INTRO, CONSENT_LOCAL, config, consent_remote
 from ..engine.classify import classify_wish
-from ..engine.wishes import wishes as starter_wishes
 from ..events_schema import EventBatch
 from ..prompts.classify_v1 import CLASSIFY_VERSION, build_classify_prompt, classify_json_schema, parse_classify
 from ..prompts.questions_v1 import QUESTIONS_TEMPERATURE, QUESTIONS_VERSION, build_questions_prompt, parse_questions, questions_json_schema
@@ -42,8 +41,7 @@ class FollowUp(BaseModel):
 async def get_config():
     """What the pages need from the server: flow length and the consent text (which names the outside services)."""
     remote = remote_services()
-    return {"flowMoves": config.flow_moves, "consent": {"intro": CONSENT_INTRO, "data": consent_remote(remote) if remote else CONSENT_LOCAL},
-            "wishes": starter_wishes}
+    return {"flowMoves": config.flow_moves, "consent": {"intro": CONSENT_INTRO, "data": consent_remote(remote) if remote else CONSENT_LOCAL}}
 
 
 class SessionBody(BaseModel):

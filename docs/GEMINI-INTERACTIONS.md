@@ -2,7 +2,7 @@
 
 Researched 2026-10-26 for the generated follow-up questions plan (`docs/NEXT.md`).
 
-**Status (2026-10-26): recommended plan implemented.** The Gemini backend calls `interactions.create` (stateless, `store: false`), and the follow-up questions are generated statelessly through the model chain (`lib/prompts/questions.v1.ts`, `/api/questions`).
+**Status (2026-10-26): recommended plan implemented.** The Gemini backend uses the Interactions API (stateless, `store: false`; since 2026-10-27 called over REST with httpx from the FastAPI backend, `backend/wish_api/providers/gemini.py`), and the follow-up questions are generated statelessly through the model chain (`backend/wish_api/prompts/questions_v1.py`, `/api/questions`).
 
 ## Short answer
 
@@ -49,10 +49,10 @@ JSON.parse(turn2.output_text);
 - **Reproducibility depends on it.** Each generated move records its `prompt_version`, and the inputs that produced it are in our own database. With server-side history, part of those inputs would live on Google's servers.
 - **Privacy:** with `store: true`, students' text sits in Google's interaction store for a day on top of normal API processing. Our current calls don't create that stored record. If we adopt it, mention it in the consent text.
 
-**When to switch:** if the flow turns into a real back-and-forth chat (many turns, long history), or when a new model we need ships only on Interactions. In that case, add an `interactions` path in `lib/providers/gemini.ts` behind the same `Backend.generate` interface. It would chain only while the same Gemini model keeps answering, and fall back to sending the full history when the chain moves to another model.
+**When to switch:** if the flow turns into a real back-and-forth chat (many turns, long history), or when a new model we need ships only on Interactions. In that case, add a chained path in `backend/wish_api/providers/gemini.py` behind the same `Backend.generate` interface. It would chain only while the same Gemini model keeps answering, and fall back to sending the full history when the chain moves to another model.
 
 **Implementation notes (from testing on 2026-10-26):**
-- `temperature` goes in `generation_config`. The SDK's type doesn't list it, but the API accepts it and range-checks it (2.0 max), so `lib/providers/gemini.ts` casts it.
+- `temperature` goes in `generation_config`. The JS SDK's type didn't list it, but the API accepts it and range-checks it (2.0 max). The FastAPI backend sends the JSON body itself, and reads the text from the `model_output` steps of the response.
 - **Turn the SDK's own retries off** (`retries: { strategy: "none" }`). With its defaults, a model returning 503 ("high demand") was retried for 231 s and ignored our abort signal, holding the request far past the time budget. Our chain already retries and fails over.
 - Pass the abort signal as `{ signal }` in the request options (`fetchOptions` is deprecated). An aborted call throws `APIUserAbortError`, which the backend maps to `AbortError`.
 - `gemini-2.5-flash` and `gemini-2.5-flash-lite` now return 404 ("no longer available to new users"). The chain marks them gone automatically.

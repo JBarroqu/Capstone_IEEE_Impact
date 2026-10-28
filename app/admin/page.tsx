@@ -1,17 +1,24 @@
 import { Fragment } from "react";
-import { isAdmin } from "@/lib/admin-auth";
-import { loadData, parseFilters, type Filters } from "@/lib/admin-data";
-import { feedback, funnel, groupBy, journeys, keyNumbers, leaderboard, rejectReasons, type Journey, type MoveMeta, type Round } from "@/lib/analytics";
-import { AdminLogin, CopyJson, Moderator, Models, type ModelRow } from "@/components/admin/client";
-import { getBackends } from "@/lib/providers/backends";
-import { health } from "@/lib/providers/health";
-import { getPreferredBackend } from "@/lib/providers/prefs";
+import { cookies } from "next/headers";
+import type { Dashboard, Journey, MoveMeta, Round } from "@/lib/admin-types";
+import { apiUrl } from "@/lib/api";
+import { AdminLogin, CopyJson, ExportLinks, Moderator, Models } from "@/components/admin/client";
 import { Tag } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Wish Engine admin" };
 
 type SP = Record<string, string | undefined>;
+type Filters = { from?: string; to?: string; participant?: string; provider?: string };
+const parseFilters = (sp: SP): Filters => ({ from: sp.from || undefined, to: sp.to || undefined, participant: sp.participant || undefined, provider: sp.provider || undefined });
+
+/** Everything the page shows, computed by FastAPI. Forwards the admin cookie (set by FastAPI on this same host). */
+async function loadDashboard(f: Filters): Promise<{ status: number; data?: Dashboard }> {
+  const cookie = (await cookies()).toString();
+  const res = await fetch(apiUrl(`/api/admin/dashboard?${qs(f, {})}`), { headers: { cookie }, cache: "no-store" }).catch(() => null);
+  if (!res) return { status: 0 };
+  return res.ok ? { status: 200, data: (await res.json()) as Dashboard } : { status: res.status };
+}
 
 const H2 = ({ children }: { children: React.ReactNode }) => <h2 className="m-0 mb-3 text-xl font-extrabold">{children}</h2>;
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -20,7 +27,6 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const Th = ({ children }: { children?: React.ReactNode }) => <th scope="col" className="whitespace-nowrap border-b-2 border-line px-3 py-2 text-left text-[13px] font-bold text-blue-dark">{children}</th>;
 const Td = ({ children, right, colSpan }: { children?: React.ReactNode; right?: boolean; colSpan?: number }) => <td colSpan={colSpan} className={`border-b border-line2 px-3 py-2 align-top text-sm ${right ? "text-right tabular-nums" : ""}`}>{children}</td>;
 const Table = ({ children }: { children: React.ReactNode }) => <div className="overflow-x-auto rounded-[14px] border border-line2"><table className="w-full border-collapse">{children}</table></div>;
-const tally = (xs: string[]) => xs.reduce<Record<string, number>>((o, x) => ((o[x] = (o[x] ?? 0) + 1), o), {});
 const pct = (n: number | null | undefined) => (n == null ? "–" : `${Math.round(n * 100)}%`);
 const dash = (v: unknown) => (v == null || v === "" ? "–" : String(v));
 const split = (o: Record<string, number> | undefined) => (o && Object.keys(o).length ? Object.entries(o).map(([k, v]) => `${k} ${v}`).join(" · ") : "–");
@@ -117,22 +123,6 @@ function JourneyCard({ j, label, showName, meta }: { j: Journey; label: string; 
   );
 }
 
-const ago = (t?: number) => (t == null ? "" : `${Math.max(0, Math.round((Date.now() - t) / 60_000))} min ago`);
-
-async function modelRows(): Promise<{ rows: ModelRow[]; preferred: string | null }> {
-  const [backends, preferred] = await Promise.all([getBackends().catch(() => []), getPreferredBackend().catch(() => null)]);
-  const ordered = health.order(backends, preferred);
-  const rows = ordered.map((b): ModelRow => {
-    const h = health.get(b.id);
-    const status = h.gone ? "gone" : health.cooling(b.id) ? "cooling" : h.lastOkAt ? "ok" : "untested";
-    const note = status === "ok" ? `answered ${ago(h.lastOkAt)} in ${h.lastLatencyMs} ms`
-      : status === "untested" ? "not called yet"
-      : `${h.lastError ?? ""} · retry in ${Math.max(1, Math.round((h.coolUntil - Date.now()) / 60_000))} min`;
-    return { id: b.id, status, note };
-  });
-  return { rows, preferred };
-}
-
 function qs(f: Filters, extra: Record<string, string>) {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries({ ...f, ...extra })) if (v) p.set(k, v);
@@ -140,36 +130,25 @@ function qs(f: Filters, extra: Record<string, string>) {
 }
 
 export default async function Admin({ searchParams }: { searchParams: Promise<SP> }) {
-  if (!(await isAdmin())) return <AdminLogin />;
   const sp = await searchParams;
   const f = parseFilters(sp);
   const sort = sp.sort ?? "pickRate";
   const dir = sp.dir === "asc" ? "asc" : "desc";
 
-  let data;
-  try { data = await loadData(f); } catch (e) {
-    return <div className="mx-auto max-w-[600px] p-5"><h1 className="text-2xl font-extrabold">Database error</h1><p className="text-muted">Check DATABASE_URL and run <code>npm run db:push</code>.</p></div>;
+  const { status, data } = await loadDashboard(f);
+  if (status === 401) return <AdminLogin />;
+  if (!data) {
+    return <div className="mx-auto max-w-[600px] p-5"><h1 className="text-2xl font-extrabold">{status === 0 ? "API not reachable" : "Database error"}</h1><p className="text-muted">{status === 0 ? <>Start the API: <code>npm run api</code> (FastAPI on port 8000).</> : <>Check DATABASE_URL and run <code>npm run db:push</code>.</>}</p></div>;
   }
-  const { events, wishes, meta, generated, sessions } = data;
+  const { sessions, models, usage, classSrc, failedLoads, rejectReasons: rr, feedback: fb, byProvider, wishTallies } = data;
+  const meta = new Map(Object.entries(data.meta));
   const showNames = sp.names !== "hide";
   const labelOf = new Map(sessions.map((x, i) => [x.id, `P${i + 1}`]));
   const names = [...new Map(sessions.map((x) => [x.participant, labelOf.get(x.id)!])).entries()];
-  const js = journeys(events, wishes);
-  const models = await modelRows();
-  const shown = events.filter((e) => e.name === "options_shown" && !e.payload.cache_hit);
-  const usage = groupBy(shown, (e) => `${e.payload.used_provider ?? "?"}:${e.payload.model ?? "?"}`, (ev) => ({
-    n: ev.length,
-    median: [...ev.map((e) => Number(e.payload.latency_ms)).filter((n) => !isNaN(n))].sort((a, b) => a - b)[Math.floor(ev.length / 2)] ?? null,
-    failover: ev.filter((e) => (e.payload.tried as string[] | undefined)?.length).length,
-  }));
-  const classSrc = tally(events.filter((e) => e.name === "classification_guessed").map((e) => String(e.payload.source ?? "keywords (old)")));
-  const failedLoads = events.filter((e) => e.name === "options_failed").length;
-  const fn = funnel(events);
+  const js: Journey[] = data.journeys.map((j) => ({ ...j, started: new Date(j.started), lastSeen: new Date(j.lastSeen) }));
+  const fn = data.funnel;
   const max = Math.max(1, fn[0].n);
-  const lb = leaderboard(events, meta);
-  const rr = rejectReasons(events);
-  const fb = feedback(events, wishes);
-  const byProvider = groupBy(events, (e) => e.provider ?? "unknown", keyNumbers);
+  const lb = data.leaderboard;
   const exportQs = qs(f, {});
   const namesLink = `/admin?${qs(f, showNames ? { names: "hide" } : {})}`;
   const sortLink = (col: string) => `/admin?${qs(f, { sort: col, dir: sort === col && dir === "desc" ? "asc" : "desc" })}`;
@@ -183,13 +162,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
   const cols: [string, string][] = [["title", "Move"], ["source", "Source"], ["focus", "Focus"], ["cost", "Cost"], ["shown", "Shown"], ["picked", "Picked"], ["pickRate", "Pick rate"], ["rejected", "Rejected"], ["medianDecisionMs", "Median ms"], ["pickRatePos1", "Pos 1"], ["pickRatePos2", "Pos 2"], ["pickRatePos3", "Pos 3"]];
 
   const genRows = lb.filter((r) => r.source === "generated");
-  const genById = new Map(generated.map((g) => [g.id, g]));
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-10 px-5 pb-16 pt-4">
       <header className="flex items-center justify-between">
         <span className="text-[17px] font-extrabold text-blue">Wish Engine admin</span>
-        <span className="text-[13px] text-muted">{events.length} events · {wishes.length} wishes</span>
+        <span className="text-[13px] text-muted">{data.eventCount} events · {data.wishCount} wishes</span>
       </header>
 
       <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-tint p-4" aria-label="Filters">
@@ -232,11 +210,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
       </Section>
 
       <Section title="Export CSV">
-        <div className="flex flex-wrap gap-2">
-          {["events", "choices", "feedback", "moves"].map((k) => (
-            <a key={k} href={`/api/admin/export/${k}?${exportQs}`} className="flex min-h-[44px] items-center rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark">{k}.csv</a>
-          ))}
-        </div>
+        <ExportLinks query={exportQs} />
       </Section>
 
       <Section title="Funnel">
@@ -310,13 +284,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
       </Section>
 
       <Section title="Wish categories">
-        {wishes.length === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
+        {data.wishCount === 0 ? <p className="m-0 text-muted">No data yet.</p> : (
           <Table>
             <tbody>
-              <tr><Td><b>Area</b></Td><Td>{split(tally(wishes.flatMap((w) => w.domains ?? [])))}</Td></tr>
-              <tr><Td><b>Kind of wish</b></Td><Td>{split(tally(wishes.flatMap((w) => w.focus ?? [])))}</Td></tr>
-              <tr><Td><b>Finish line</b></Td><Td>{split(tally(wishes.map((w) => (w.type === "fixed" ? "clear" : "open-ended"))))}</Td></tr>
-              <tr><Td><b>Archetype</b></Td><Td>{split(tally(wishes.map((w) => w.archetype ?? "none")))}</Td></tr>
+              <tr><Td><b>Area</b></Td><Td>{split(wishTallies.area)}</Td></tr>
+              <tr><Td><b>Kind of wish</b></Td><Td>{split(wishTallies.focus)}</Td></tr>
+              <tr><Td><b>Finish line</b></Td><Td>{split(wishTallies.finish)}</Td></tr>
+              <tr><Td><b>Archetype</b></Td><Td>{split(wishTallies.archetype)}</Td></tr>
             </tbody>
           </Table>
         )}
@@ -346,8 +320,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<SP
             <thead><tr><Th>Move</Th><Th>Step</Th><Th>Shown</Th><Th>Picked</Th><Th>Pick rate</Th><Th /></tr></thead>
             <tbody>
               {genRows.map((r) => {
-                const g = genById.get(r.id);
-                const json = JSON.stringify({ ...(g?.move as object), id: r.id }, null, 2);
+                const json = JSON.stringify({ ...data.generated[r.id], id: r.id }, null, 2);
                 return <tr key={r.id}><Td>{r.title}<div className="text-xs text-muted">{r.id}</div></Td><Td right>{r.step}</Td><Td right>{r.shown}</Td><Td right>{r.picked}</Td><Td right><b>{pct(r.pickRate)}</b></Td><Td><CopyJson json={json} /></Td></tr>;
               })}
             </tbody>

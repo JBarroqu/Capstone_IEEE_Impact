@@ -1,8 +1,10 @@
 import Flow from "@/components/Flow";
-import { config } from "@/lib/config";
+import { ApiDown } from "@/components/ApiDown";
+import { getServerConfig } from "@/lib/server-config";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
-  return <Flow flowMoves={config.flowMoves} />;
+export default async function Home() {
+  const c = await getServerConfig();
+  return c ? <Flow flowMoves={c.flowMoves} /> : <ApiDown />;
 }

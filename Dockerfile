@@ -1,13 +1,14 @@
-# Wish Engine: Next.js standalone server. Build: docker compose build. Run: docker compose up.
+# Wish Engine frontend: Next.js standalone server (the API is backend/Dockerfile). Build: docker compose build. Run: docker compose up.
 
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Full toolchain; also used by the compose "migrate" service (drizzle-kit push).
 FROM deps AS build
 COPY . .
+ARG NEXT_PUBLIC_API_PORT=8000
+ENV NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT
 ENV NEXT_TELEMETRY_DISABLED=1 NEXT_STANDALONE=1
 RUN npm run build
 

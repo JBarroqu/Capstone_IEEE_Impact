@@ -5,7 +5,21 @@ The prototype runs on the researcher's laptop (or the LAN, during a moderated se
 See it: `git show public-hardening --stat`, or browse any file with `git show public-hardening:lib/rate-limit.ts`.
 Restore one file: `git checkout public-hardening -- lib/rate-limit.ts`.
 
-The code around these files has changed since the tag (the prompt is now `moves.v3`, the cache and catalog are gone), so re-apply the route changes by hand instead of checking out whole route files. The diff to follow: `git diff public-hardening HEAD -- app/api`.
+**The backend has since moved to FastAPI (`backend/wish_api`), so the tag's code is TypeScript and has to be ported, not checked out.** Use it as the reference implementation: the logic, limits and tests carry over directly. Where each piece goes now:
+
+| At the tag (TypeScript) | Port to (FastAPI) |
+|---|---|
+| `lib/rate-limit.ts` + `limited()` calls | a `wish_api/rate_limit.py` token bucket, called at the top of each route (or a dependency) |
+| `lib/session-auth.ts`, `lib/secret.ts` | `wish_api/session_auth.py`; `/api/session` sets the cookie, other routes check it. The frontend then needs `credentials: "include"` on every call (already set in `lib/client-api.ts`, not yet on `lib/track.ts`, whose text/plain beacons send cookies anyway) |
+| `lib/admin-auth.ts` (signed, expiring) | `wish_api/admin_auth.py` |
+| `lib/request.ts` `readJson` | `routes/common.py` `read_json` (add the byte cap there) |
+| `headers()` in `next.config.mjs` | still Next for pages; add the same headers to API responses with a FastAPI middleware |
+| `Caddyfile` + compose `proxy` | in front of **both** apps, or a platform proxy (Vercel for pages, the API host's proxy) |
+
+**New with separate origins:**
+- Set `CORS_ORIGINS` to the exact frontend origin(s). The default regex allows every localhost and private LAN address.
+- Keep frontend and API on one registrable domain (`app.example.com` + `api.example.com`) so the admin cookie stays same-site. On unrelated domains it becomes a third-party cookie, which Safari blocks.
+- Set `NEXT_PUBLIC_API_URL` to the public API URL at build time.
 
 ## The layer, in the order to restore it
 

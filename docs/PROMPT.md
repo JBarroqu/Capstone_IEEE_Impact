@@ -33,8 +33,8 @@ At every step the student is shown **options** and picks one. If none fit, they 
 
 ## 2. Stack
 
-- **Next.js (App Router) + TypeScript + Tailwind CSS**, deployable to Vercel.
-- **Postgres via Drizzle ORM**, connection from `DATABASE_URL` (works with Neon or Supabase free tier). Include `drizzle-kit` migrations and `npm run db:push`.
+- **Next.js (App Router) + TypeScript + Tailwind CSS**, deployable to Vercel. **UPDATE (2026-10-27): pages only.** The backend is a separate **FastAPI** app (`backend/`, Python 3.13) that the browser calls cross-origin with CORS.
+- **Postgres**, connection from `DATABASE_URL` (works with Neon or Supabase free tier). **UPDATE (2026-10-27):** SQLAlchemy (async, asyncpg) instead of Drizzle; `npm run db:push` runs `backend/scripts/migrate.py`.
 - **Options come from an LLM, behind a swappable `MoveProvider` interface** (full spec in Section 4b). Providers, selected by `MOVE_PROVIDER` env var:
   - `gemini`: Google Gemini API via the official `@google/genai` SDK (`GEMINI_API_KEY`, `GEMINI_MODEL`, a Flash-class model). **Expected primary provider and the default**, whether run locally or deployed.
   - `ollama`: a local model on my laptop via Ollama (`OLLAMA_URL`, default `http://localhost:11434`; `OLLAMA_MODEL`). Optional; feasible since tests run from my laptop, and useful for offline sessions or keeping data on-device.
@@ -129,9 +129,9 @@ type Move = {
 The LLM writes options tailored to the student's exact wish, why, prior attempts, and archetype, instead of only picking from a fixed list. The analytics in Section 6 still have to work, so every generated option must become a real, stored `Move` with a stable id.
 
 **Interface.** Both providers implement the same `MoveProvider`:
-`getOptions(session, step, { excludeIds, rejectReason, rerollIndex }) → { moves: Move[3], meta }`. Keep all model-specific code in `lib/providers/ollama.ts` and `lib/providers/gemini.ts`; the rest of the app never knows which one ran.
+`getOptions(session, step, { excludeIds, rejectReason, rerollIndex }) → { moves: Move[3], meta }`. Keep all model-specific code in `backend/wish_api/providers/` (`ollama.py`, `gemini.py`, `openai_compat.py`); the rest of the app never knows which one ran.
 
-**Prompt** (`lib/prompts/moves.v4.ts`, versioned; bump the version on any edit and log it):
+**Prompt** (`backend/wish_api/prompts/moves_v4.py`, versioned; bump the version on any edit and log it):
 
 - System prompt: the audience is **senior ASU CS majors**; moves must be concrete, doable, and specific ("Ship a PR that fixes one `good first issue` in a repo you already use"), never vague ("Explore open source"). No invented ASU club names, real people, or prices (use `[PRICE]`). Explain the step semantics (move 1 = quick win under ~60 min; move 2 = builds on move 1; move 3 = the version they ship).
 - Context: wish text, confirmed type/focus/domain, why, prior attempts (with "rank these formats lower"), archetype, the moves already locked in earlier steps (titles + details), and for a reroll the rejected options + the reason chip/text ("too big" → go smaller, "don't want to pay" → all free, etc.).

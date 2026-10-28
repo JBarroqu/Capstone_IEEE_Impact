@@ -1,5 +1,6 @@
 import type { Domain, Focus, Move, OptionsMeta, OptionsRequest, PriorAttempts, QuestionSet, WishType } from "./types";
 import { quiz } from "./archetypes";
+import { apiUrl } from "./api";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const retryable = (status: number) => status === 0 || status === 429 || status >= 500;
@@ -7,7 +8,8 @@ const retryable = (status: number) => status === 0 || status === 429 || status >
 /** POST with up to `tries` attempts on network errors, 429 and 5xx (backing off, honouring Retry-After). 4xx fails at once. */
 export async function postRaw(url: string, body: unknown, tries = 3): Promise<Response> {
   for (let i = 1; ; i++) {
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+    // The API is on another origin; credentials so the admin cookie (same site, other port) goes along.
+    const res = await fetch(apiUrl(url), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
       .catch(() => new Response(null, { status: 0 } as ResponseInit));
     if (res.ok || !retryable(res.status) || i >= tries) return res;
     const after = Number(res.headers.get("retry-after"));

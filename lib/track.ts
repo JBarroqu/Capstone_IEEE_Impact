@@ -1,6 +1,7 @@
 "use client";
 import type { ClientEvent } from "./events";
 import { uuid } from "./uuid";
+import { apiUrl } from "./api";
 
 type Ctx = { sessionId: string; participantCode: string; wishId?: string | null };
 let ctx: Ctx | null = null;
@@ -33,7 +34,8 @@ export function flush(useBeacon = false) {
   if (timer) { clearTimeout(timer); timer = null; }
   if (!queue.length) return;
   if (useBeacon && navigator.sendBeacon) {
-    while (queue.length) navigator.sendBeacon("/api/events", new Blob([JSON.stringify({ events: queue.splice(0, 100) })], { type: "application/json" }));
+    // text/plain: browsers refuse cross-origin beacons with a JSON content type. The API parses the body either way.
+    while (queue.length) navigator.sendBeacon(apiUrl("/api/events"), new Blob([JSON.stringify({ events: queue.splice(0, 100) })], { type: "text/plain" }));
     return;
   }
   const batch = queue.splice(0, 100);
@@ -42,7 +44,8 @@ export function flush(useBeacon = false) {
     failures++;
     schedule(Math.min(60_000, 2000 * 2 ** (failures - 1)));
   };
-  fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ events: batch }), keepalive: true })
+  // text/plain keeps this a "simple" request (no CORS preflight), which keepalive needs to survive page close.
+  fetch(apiUrl("/api/events"), { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ events: batch }), keepalive: true })
     .then((res) => {
       // 4xx (other than 429) will not get better by retrying; drop the batch rather than loop.
       if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) { failures = 0; if (queue.length) schedule(0); }

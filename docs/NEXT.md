@@ -3,7 +3,7 @@
 ## Generated follow-up questions (replace the fixed archetype quiz)
 
 **Status (2026-10-26): built.**
-- `lib/prompts/questions.v1.ts` (`QUESTIONS_VERSION`), run through `runChain` from `/api/questions`.
+- `backend/wish_api/prompts/questions_v1.py` (`QUESTIONS_VERSION`), run through `run_chain` from `/api/questions`.
 - Questions are generated when "A bit of context" is continued; a loading state shows while they're written.
 - The answers go into the moves prompt as `followUps` (`moves.v4`), are saved on `wishes.follow_ups`, and appear in the admin participant card and the export.
 - If every model fails, the fixed quiz is shown (`source: "fixed"`) and still assigns an archetype. Skip stays.

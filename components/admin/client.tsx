@@ -1,7 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, PrimaryButton, textareaCls } from "../ui";
+import { apiUrl } from "@/lib/api";
+
+// Admin calls carry the wish_admin cookie, which FastAPI sets (same site as this page, different port).
+const api = (path: string, init?: RequestInit) => fetch(apiUrl(path), { credentials: "include", ...init });
 
 export function AdminLogin() {
   const [pw, setPw] = useState("");
@@ -9,7 +13,7 @@ export function AdminLogin() {
   const router = useRouter();
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const r = await fetch("/api/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: pw }) });
+    const r = await api("/api/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: pw }) });
     if (r.ok) return router.refresh();
     const j = await r.json().catch(() => ({}));
     setErr(j.error ?? "Sign-in failed.");
@@ -43,13 +47,13 @@ export function Moderator() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const check = async () => {
     setMsg("");
-    const r = await fetch("/api/admin/delete-test").then((x) => x.json()).catch(() => null);
+    const r = await api("/api/admin/delete-test").then((x) => x.json()).catch(() => null);
     if (!r?.ok) return setMsg("Could not list test sessions.");
     if (!r.count) return setMsg("No test sessions.");
     setPreview({ count: r.count, codes: r.codes });
   };
   const del = async () => {
-    const r = await fetch("/api/admin/delete-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expect: preview?.count }) }).then((x) => x.json()).catch(() => null);
+    const r = await api("/api/admin/delete-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expect: preview?.count }) }).then((x) => x.json()).catch(() => null);
     setPreview(null);
     setMsg(r?.ok ? `Deleted ${r.deleted} test session(s).` : r?.reason === "changed" ? "The list changed. Check again." : "Delete failed.");
   };
@@ -89,7 +93,7 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
   const [msg, setMsg] = useState("");
   const post = async (body: object, label: string) => {
     setBusy(label); setMsg("");
-    const r = await fetch("/api/admin/models", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => null);
+    const r = await api("/api/admin/models", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => null);
     setBusy(null);
     if (!r?.ok) setMsg("Request failed.");
     else if (r.results) setMsg(`${r.results.filter((x: { ok: boolean }) => x.ok).length} of ${r.results.length} models answered.`);
@@ -122,6 +126,20 @@ export function Models({ rows, preferred }: { rows: ModelRow[]; preferred: strin
           ))}
         </ol>
       )}
+    </div>
+  );
+}
+
+/** CSV downloads straight from FastAPI; the browser sends the admin cookie (same site, other port). */
+export function ExportLinks({ query }: { query: string }) {
+  // The API URL depends on the browser's hostname, so links are filled in after mount (no SSR/hydration mismatch).
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {["events", "choices", "feedback", "moves"].map((k) => (
+        <a key={k} href={ready ? apiUrl(`/api/admin/export/${k}?${query}`) : undefined} className="flex min-h-[44px] items-center rounded-full bg-ink px-5 text-sm font-bold text-white hover:bg-blue-dark">{k}.csv</a>
+      ))}
     </div>
   );
 }
