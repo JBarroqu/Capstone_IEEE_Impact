@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Impact++ Buddy</title>
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+        <header>
+            <div class="brand">
+                Impact<span>++</span> 
+                <small>Buddy System</small>
+            </div>
+            <div id="identity"></div>
+        </header>
+        <main>
+            <div id="notice" role="status"></div>
+            <section id="auth">
+                <h1>Build projects together.</h1>
+                <p>Create an account, track milestones, and invite a Buddy to keep you accountable.</p>
+                <div class="columns">
+                    <form id="login">
+                        <h2>Log in</h2>
+                        <label>Username<input name="username" required autocomplete="username"></label>
+                        <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+                        <button>Log in</button>
+                    </form>
+                    <form id="register">
+                        <h2>Create account</h2>
+                        <label>Username<input name="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+" autocomplete="username"></label>
+                        <label>Password<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+                        <button>Create account</button>
+                    </form>
+                </div>
+            </section>
+            <section id="app" hidden>
+                <div class="toolbar">
+                    <div>
+                        <h1>My workspace</h1>
+                        <p>Manage your projects and Buddy invitations.</p>
+                    </div>
+                    <button id="new-project">+ New project</button>
+                </div>
+                <div class="columns">
+                    <div>
+                        <h2>My projects</h2>
+                        <div id="projects"></div>
+                        <h2>Projects I buddy</h2>
+                        <div id="buddy-projects"></div>
+                    </div>
+                    <div>
+                        <h2>Invitations</h2>
+                        <div id="invitations"></div>
+                    </div>
+                </div>
+                <section id="detail" hidden></section>
+            </section>
+        </main>
+        <script src="/app.js" defer></script>
+    </body>
+</html>
