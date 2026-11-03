@@ -614,7 +614,7 @@ Response: `{ "ok": true }`. The client sends this with `Content-Type: text/plain
               { "label": "Path rated", "n": 5 } ],
   "leaderboard": [ { "id": "gen-8d9ad124b7", "title": "...", "shown": 1, "picked": 1, "pickRate": 1, "rejected": 0, "medianDecisionMs": 14210,
                      "pickRatePos1": null, "pickRatePos2": 1, "pickRatePos3": null, "source": "generated", "step": 1, "focus": "goal|connect", "cost": "free" } ],
-  "rejectReasons": { "1": { "too big": 1 } },
+  "rejectReasons": { "1": { "Too big": 1 } },
   "feedback": { "avgRating": 4.2, "ratings": 5, "wouldDoThisWeek": { "yes": 3, "maybe": 2 }, "paidWillingness": {}, "optionsUseful": {}, "openText": [] },
   "byProvider": { "auto": { "sessions": 6, "completedRated": 5, "completionRate": 0.83, "avgRating": 4.2, "medianLatencyMs": 2215, "...": "..." } },
   "wishTallies": { "area": { "career": 6 }, "focus": { "goal": 5 }, "finish": { "clear": 5, "open-ended": 1 }, "archetype": { "none": 6 } }
