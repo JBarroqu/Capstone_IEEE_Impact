@@ -1,6 +1,6 @@
 # Wish Engine prototype
 
-Architecture, data model and API with samples: `docs/ARCHITECTURE.md`. Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`. Before going public: `docs/GOING-PUBLIC.md`. Gemini Interactions API research: `docs/GEMINI-INTERACTIONS.md`.
+Architecture, data model and API with samples: `docs/ARCHITECTURE.md`. What the next module receives (selected-move payload): `docs/HANDOFF.md`. Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`. Before going public: `docs/GOING-PUBLIC.md`. Gemini Interactions API research: `docs/GEMINI-INTERACTIONS.md`.
 
 Two apps: a **Next.js frontend** (pages only, no `/api` routes) and a **FastAPI backend** in `backend/wish_api` (every API route, model chain, prompts, analytics). The browser calls the API cross-origin (same host, port 8000; CORS with credentials). User-testing prototype: shows students 3 move options per step for a "wish", logs every pick/skip/reject, collects feedback. Source of truth for requirements: `docs/PROMPT.md` (note its UPDATE notes: laptop-first, Gemini default, single design in /design, no themes).
 
