@@ -5,7 +5,7 @@ The prototype runs on the researcher's laptop. Participants use that laptop, or 
 ## What is in place
 
 - **Admin password** (`ADMIN_PASSWORD`) on `/admin` and its API routes. httpOnly cookie, compared in constant time.
-- **Validation:** zod on every request body, with `.max()` on arrays and strings, so a client bug can't send a huge prompt.
+- **Validation:** pydantic on every request body, with length caps on arrays and strings, so a client bug can't send a huge prompt.
 - **CSV exports** prefix text cells starting with `= + - @` (or tab/CR) with `'`, so student text can't run as a spreadsheet formula. Numbers are untouched.
 - **Delete TEST sessions** only matches `^TEST[ _-]` (case-sensitive; "Tester" is safe). It shows the count and the codes first, refuses if the list changed, and runs in a transaction.
 - **Model reliability:** each Gemini model is held to `GEMINI_RPM` per minute. Failing models cool down and the chain moves on. A used-up **daily** quota sits out until midnight Pacific, when it resets.
