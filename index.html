@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10245e">
+  <title>IEEE Impact++</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="auth" class="auth-wrap hidden">
+    <div class="auth-card">
+      <div class="brand-mark">IEEE <b>Impact++</b></div>
+      <p class="eyebrow">FROM PERSONAL GROWTH TO GREATER IMPACT</p>
+      <h1 id="auth-title">Welcome back</h1>
+      <form id="auth-form">
+        <label id="name-label" class="hidden">Name<input id="name" autocomplete="name"></label>
+        <label>Email<input id="email" type="email" required autocomplete="email"></label>
+        <label>Password<input id="password" type="password" minlength="8" required autocomplete="current-password"></label>
+        <button class="primary full" type="submit" id="auth-submit">Sign in</button>
+      </form>
+      <p class="muted center" id="auth-error"></p>
+      <button class="text-button" id="auth-toggle">Create a student account</button>
+    </div>
+  </div>
+  <div id="app" class="shell hidden">
+    <aside class="sidebar">
+      <div class="brand">IEEE<br><strong>Impact++</strong></div>
+      <nav id="nav">
+        <a href="#home" data-page="home" class="active">⌂ <span>Home</span></a>
+        <a href="#career" data-page="career">◈ <span>Career Roadmap</span></a>
+        <a href="#moves" data-page="moves">ϟ <span>Moves</span></a>
+        <a href="#evidence" data-page="evidence">▣ <span>Evidence</span></a>
+        <a href="#reviews" data-page="reviews">⬟ <span>Reviews</span></a>
+        <a href="#score" data-page="score">▥ <span>Impact Score</span></a>
+        <a href="#badges" data-page="badges">♜ <span>Badges & Achievements</span></a>
+        <a href="#opportunities" data-page="opportunities">☆ <span>Opportunities</span></a>
+        <a href="#profile" data-page="profile">⚙ <span>Profile & Settings</span></a>
+      </nav>
+      <div class="sidebar-foot">IEEE<br><small>Advancing Technology<br>for Humanity</small></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><h1 id="greeting">Good afternoon</h1><p>Your impact is creating <b>real opportunities.</b></p></div>
+        <div class="user-chip"><span id="avatar">C</span><button id="logout" class="logout">Sign out</button></div>
+      </header>
+      <div id="notice" class="notice hidden"></div>
+      <section id="view" aria-live="polite"></section>
+      <footer>IEEE Impact++ <span>More Talents · A Brighter World</span></footer>
+    </main>
+  </div>
+  <script src="config.js"></script><script src="app.js"></script>
+</body></html>
