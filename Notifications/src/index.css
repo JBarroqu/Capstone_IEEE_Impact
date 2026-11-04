@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Poppins:Bold';
+  src: url('https://static.figma.com/font/Poppins-Bold_6') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Poppins:Medium';
+  src: url('https://static.figma.com/font/Poppins-Medium_6') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: 'Poppins:Regular';
+  src: url('https://static.figma.com/font/Poppins-Regular_6') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Poppins:SemiBold';
+  src: url('https://static.figma.com/font/Poppins-SemiBold_6') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: 'Roboto:Medium';
+  src: url('https://static.figma.com/font/Roboto_wdth_wght__3') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100dvh;
+    background: #dfeffe;
+    font-family: 'Poppins:Regular', sans-serif;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.notification-list {
+  scrollbar-color: rgb(0 0 0 / 50%) transparent;
+  scrollbar-width: thin;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 11px;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background: rgb(0 0 0 / 50%);
+  background-clip: padding-box;
+}
+
+.chip-scroll {
+  scrollbar-width: none;
+}
+
+.chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .notification-list {
+    max-height: none;
+  }
+}
