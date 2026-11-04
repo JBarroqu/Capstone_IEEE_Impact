@@ -92,13 +92,19 @@ def is_local(req: Request) -> bool:
     return host in ("localhost", "127.0.0.1", "[::1]", "::1")
 
 
+def forwarded_for(req: Request) -> list[str]:
+    return [p.strip() for p in (req.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
+
+
 def client_ip(req: Request) -> str:
-    """First X-Forwarded-For hop when TRUST_PROXY is on (the proxy overwrites whatever the client sent), else the socket
-    address. Without a proxy in front, honouring the header would let anyone pick their own rate-limit key."""
+    """With TRUST_PROXY: the address PROXY_HOPS entries from the right of X-Forwarded-For. Proxies append the address
+    they saw, so the rightmost entries are the trustworthy ones; anything to their left came from the client and can be
+    faked (Render's proxy appends rather than replaces; Caddy replaces, leaving one entry). Without TRUST_PROXY the
+    socket address: honouring the header with no proxy in front would let anyone pick their own rate-limit key."""
     if config.trust_proxy:
-        xff = (req.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-        if xff:
-            return xff
+        hops = forwarded_for(req)
+        if hops:
+            return hops[-min(config.proxy_hops, len(hops))]
     return req.client.host if req.client else "unknown"
 
 

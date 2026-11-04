@@ -1,10 +1,10 @@
 # Security and reliability
 
-Two ways to run: locally (`docker-compose.yml`, the researcher's laptop or the LAN during a moderated session) and publicly (`docker-compose.public.yml`, one https domain behind Caddy; `docs/DEPLOY.md`). The checks below run in both unless marked public.
+Two ways to run: locally (`docker-compose.yml`, the researcher's laptop or the LAN during a moderated session) and publicly (Render from `render.yaml`, or `docker-compose.public.yml` behind Caddy; `docs/DEPLOY.md`). The checks below run in both unless marked public.
 
 ## How a request is checked
 
-1. **Caddy** (public) is the only thing reachable. It terminates https, redirects http, caps bodies at 128 KB, and replaces any `X-Forwarded-For` the client sent with the real address. The API trusts forwarding headers only with `TRUST_PROXY` (on in public mode); otherwise it uses the socket address, so a client can't pick its own rate-limit key.
+1. **Proxy** (public): Render's proxy or Caddy terminates https and redirects http; on Render the API is a private service reached only through the app's `/api` rewrite. The API trusts forwarding headers only with `TRUST_PROXY` (on in public mode) and takes the client address `PROXY_HOPS` entries from the right of `X-Forwarded-For`, so entries a client adds itself are ignored (Render appends rather than replaces). Without `TRUST_PROXY` it uses the socket address.
 2. **Rate limits** (`backend/wish_api/rate_limit.py`): token buckets per IP, per session and globally. Over the limit: `429 {reason:"rate_limited", retry_after_s}` with `Retry-After`; the client backs off and retries. `RATE_LIMIT=false` turns them off.
 3. **Body size cap** (`routes/common.py` `read_json`): 1–64 KB per route, checked on `Content-Length` and on the bytes read. Pydantic models cap every array and string.
 4. **Signed session cookie** (`security.py`): `/api/session` requires `consented: true` and a non-empty name, then sets `wish_sess = sessionId.issuedAt.HMAC` (httpOnly, `SameSite=Lax`, 12 h, `Secure` over https). `/api/options`, `/api/classify`, `/api/questions`, `/api/wish` and `/api/events` refuse requests without it (`401 no_session`) or with a body `sessionId` that does not match. A wish can only be updated by the session that created it.

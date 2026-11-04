@@ -54,6 +54,8 @@ class Config:
     # Trust X-Forwarded-For/-Proto/-Host. Only behind a proxy that overwrites them (Caddy does); otherwise clients pick their own IP.
     trust_proxy = flag("TRUST_PROXY", public_mode)
     # Key for the session and admin cookies; empty = a random key kept in the settings table.
+    # How many proxies in front of the API append to X-Forwarded-For (Render: 1; Next's rewrite passes it through).
+    proxy_hops = max(1, int(env("PROXY_HOPS", "1")))
     session_secret = env("SESSION_SECRET")
     rate_limit = flag("RATE_LIMIT", True)
     # Admin login over plain http from another machine sends the password in cleartext; refused unless this is set.

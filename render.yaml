@@ -1,0 +1,64 @@
+# Render Blueprint: New > Blueprint in the Render dashboard, pick this repo and the wish-engine branch.
+# Three resources in one region (they share Render's private network):
+#   wish-app  public web service (Next.js). The browser calls /api on this same origin; Next forwards it to wish-api.
+#   wish-api  private service (FastAPI). No public URL; only wish-app reaches it.
+#   wish-db   Render Postgres.
+# Secrets marked sync: false are asked for once when the Blueprint is created. Details: docs/DEPLOY.md.
+services:
+  - type: web
+    name: wish-app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb          # paid plans do not sleep; "free" sleeps after 15 min idle (about a minute to wake)
+    region: oregon
+    healthCheckPath: /terms
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: same-origin
+      - key: PUBLIC_MODE
+        value: "true"
+      - key: API_HOSTPORT        # wish-api's private address; also used at build time for the /api rewrite
+        fromService:
+          type: pserv
+          name: wish-api
+          property: hostport
+
+  - type: pserv
+    name: wish-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb          # private services have no free plan
+    region: oregon
+    # Creates missing tables and columns, then starts one worker (model health and rate limits live in memory).
+    dockerCommand: sh -c "python scripts/migrate.py && exec uvicorn wish_api.main:app --host 0.0.0.0 --port 8000 --workers 1"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wish-db
+          property: connectionString
+      - key: PUBLIC_MODE
+        value: "true"
+      - key: TRUST_PROXY         # requests arrive through Render's proxy, then wish-app's rewrite
+        value: "true"
+      - key: PROXY_HOPS
+        value: "1"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD      # 8+ characters, not change-me
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY  # optional backup models; leave empty to skip
+        sync: false
+      - key: FLOW_MOVES
+        value: "1"
+
+databases:
+  - name: wish-db
+    databaseName: wish_engine
+    user: wish
+    plan: 0.1c-256mb            # "free" expires after 30 days
+    region: oregon
+    ipAllowList: []             # no access from outside Render

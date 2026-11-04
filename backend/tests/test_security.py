@@ -160,3 +160,20 @@ def test_security_headers_on_api_responses():
     r = client.get("/api/health")
     assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+
+
+def test_client_ip_is_rightmost_forwarded_hop(monkeypatch):
+    """Render's proxy appends the address it saw; whatever the client sent sits to the left and is ignored."""
+    monkeypatch.setattr(config, "trust_proxy", True)
+    monkeypatch.setattr(config, "proxy_hops", 1)
+
+    class Req:
+        headers = {"x-forwarded-for": "6.6.6.6, 7.7.7.7, 203.0.113.9"}
+        client = None
+
+    assert security.client_ip(Req()) == "203.0.113.9"
+    monkeypatch.setattr(config, "proxy_hops", 2)
+    assert security.client_ip(Req()) == "7.7.7.7"
+    monkeypatch.setattr(config, "trust_proxy", False)
+    Req.client = type("C", (), {"host": "10.1.1.1"})
+    assert security.client_ip(Req()) == "10.1.1.1"

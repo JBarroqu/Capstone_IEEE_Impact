@@ -107,6 +107,17 @@ async def _test_sessions(c) -> list[dict]:
     return [{"id": k, "code": v} for k, v in seen.items()]
 
 
+@router.get("/client-ip")
+async def client_ip_check(req: Request):
+    """What the rate limits see as this browser's address, and the raw forwarding header. For checking a deployment:
+    `ip` should be your own public address, also when you send a fake X-Forwarded-For."""
+    if not await is_admin(req):
+        return UNAUTH()
+    from ..security import forwarded_for
+    return ok(ip=client_ip(req), forwardedFor=forwarded_for(req), trustProxy=config.trust_proxy, proxyHops=config.proxy_hops,
+              https=is_https(req))
+
+
 @router.get("/delete-test")
 async def delete_test_preview(req: Request):
     """Preview: which sessions a delete would remove."""
