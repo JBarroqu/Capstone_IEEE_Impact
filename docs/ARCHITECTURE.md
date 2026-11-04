@@ -2,7 +2,7 @@
 
 The Wish Engine is a user-testing prototype. A student types a **wish** (something they want to make happen). They answer a few context questions, then see **3 move options** for their first step. Every pick, skip, reroll and reject is logged, and the student rates what they got. An admin page turns the logs into the numbers the study needs.
 
-This document covers how the pieces fit together, the decisions behind them, the data model, and the API with sample requests and responses. Requirements live in `docs/PROMPT.md`. Working notes for whoever edits the code are in `CLAUDE.md`. Before exposing the app to the internet, read `docs/GOING-PUBLIC.md`.
+This document covers how the pieces fit together, the decisions behind them, the data model, and the API with sample requests and responses. Requirements live in `docs/PROMPT.md`. Working notes for whoever edits the code are in `CLAUDE.md`. Deploying on the internet: `docs/DEPLOY.md`; security layer: `docs/SECURITY.md`.
 
 ---
 
@@ -124,12 +124,12 @@ Move requests wait on the classification promise (`withClass` in `Flow.tsx`), so
 | **A model chain with failover, not a single model.** | Gemini free-tier models get rate-limited, overloaded (503) and retired often. | Models are discovered at runtime and ranked. A failing model cools down and the next one is tried at once. See §6. |
 | **Gemini through the Interactions REST API, stateless (`store: false`), no client retries.** | The SDK's built-in retries let one 503 hang a request for 231 s. Stateless calls carry the full prompt, so nothing depends on server-side conversation state. | The chain's own timeouts and failover are the only retry logic. See `docs/GEMINI-INTERACTIONS.md`. |
 | **FastAPI backend, Next.js for pages only.** | The team wanted the backend in Python. It was ported from the original TypeScript routes, with byte-for-byte parity checks on prompts, ids, analytics and CSV output. | `jsutil.py` reproduces JS rounding, number formatting and JSON spacing so the outputs match the old backend. Two processes to run. |
-| **Separate origins plus CORS, not a proxy.** | The setup is simple for local and LAN sessions, and it matches a later public deployment (`app.` and `api.` on one domain). | CORS with credentials. Events go as `text/plain`, so beacons and `keepalive` requests are "simple" requests with no preflight. Cookies ignore ports, so the admin cookie set by FastAPI reaches the Next server too. |
+| **Separate origins locally, one origin in public.** | Locally the pages (:3010) and API (:8000) need no proxy. In public, Caddy serves both on one https domain (`/api/*` to FastAPI), so cookies are first-party and no CORS is needed. | Locally: CORS with credentials; cookies ignore ports, so cookies set by FastAPI reach the Next server too. Events go as `text/plain`, so beacons and `keepalive` requests need no preflight. The frontend is built with `NEXT_PUBLIC_API_URL=same-origin` for public. |
 | **One uvicorn worker.** | Model health, cooldowns and the per-model Gemini rate queue live in memory. | Do not scale horizontally without moving that state to Postgres or Redis. |
 | **Append-only event log as the source of truth for analytics.** | Every metric (funnel, pick rate by position, reject reasons, latency) can be recomputed from raw events. Changing a metric needs no migration. | `analytics.py` is pure functions over event rows. Payload keys are snake_case and analytics depends on them (§5.3). |
 | **`/api/wish` is an upsert.** | The client fires partial wish updates (text, classification, why, follow-ups) without waiting, so they can arrive out of order. | Insert-or-update in one statement, applying only the fields sent. |
 | **Client-made event ids.** | A batch retried after a lost response must not be stored twice. | `events.id` comes from the client; inserts use `ON CONFLICT DO NOTHING`. |
-| **Local/LAN security posture only.** | It runs on the researcher's laptop in moderated sessions. | Rate limits, signed session cookies, an HTTPS proxy and the like were removed. They are kept at git tag `public-hardening` (TypeScript) and listed in `docs/GOING-PUBLIC.md`. |
+| **Signed session cookie, rate limits, body caps in every mode; proxy and HTTPS in public.** | The same code runs on a laptop and on the internet. | `/api/session` sets `wish_sess`; the write and model routes require it. Public mode adds Caddy (https, real client IP), HSTS, and turns off `/docs`. See `docs/SECURITY.md`, `docs/DEPLOY.md`. |
 | **Versioned prompts.** | Analytics compares results across prompt changes. | `PROMPT_VERSION` (`moves.v4`), `QUESTIONS_VERSION` (`questions.v1`) and `CLASSIFY_VERSION` (`classify.v1`) are logged on every call. Bump the version on any edit. |
 
 ---
@@ -363,7 +363,9 @@ Base URL: `http://<host>:8000`. Interactive OpenAPI docs are at `/docs`.
 - Database errors return `503 {"ok": false, "reason": "db"}` (so the client retries) on session and wish, and `500` on events.
 - Field names in requests and responses are camelCase. Event payloads (§5.3) are snake_case.
 - CORS allows credentials. Default origins are localhost and private LAN addresses on any port; `CORS_ORIGINS` overrides them.
+- Options, classify, questions, wish and events need the `wish_sess` cookie that `/api/session` sets (and a matching `sessionId` where the body has one); without it they return `401 {"ok": false, "reason": "no_session"}`.
 - Admin routes need the `wish_admin` cookie; without it they return `401 {"ok": false}`.
+- Over a rate limit: `429 {"ok": false, "reason": "rate_limited", "retry_after_s": n}` with `Retry-After`. Bodies over the route's cap (1–64 KB) get `400`.
 
 ### Student routes (`routes/student.py`)
 
@@ -382,7 +384,7 @@ Base URL: `http://<host>:8000`. Interactive OpenAPI docs are at `/docs`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/admin/login` | `{password}`; sets the `wish_admin` cookie (12 h, httpOnly, SameSite=Lax) |
+| POST | `/api/admin/login` | `{password}`; sets the `wish_admin` cookie (signed, 12 h, httpOnly, SameSite=Strict) |
 | GET | `/api/admin/dashboard` | Everything the admin page renders. Filters: `from`, `to` (YYYY-MM-DD), `participant`, `provider` |
 | GET | `/api/admin/export/{kind}` | CSV, where `kind` is `events`, `choices`, `feedback` or `moves`. Same filters. UTF-8 with BOM; text cells starting with `= + - @` are escaped |
 | POST | `/api/admin/models` | `{"action": "prefer", "id": "<backend id>" \| null}`, `{"action": "test"}` (ping every model), `{"action": "refresh"}` (re-discover) |
@@ -413,7 +415,7 @@ Where noted, samples are real. The rest are built from the code's schemas and ma
 // request
 { "sessionId": "3f6c1e2a-8b4d-4c1e-9a7f-2d5b6e8c9a01", "participantCode": "P07", "consented": true }
 // response
-{ "ok": true, "provider": "auto" }
+{ "ok": true, "provider": "auto" }                // + Set-Cookie: wish_sess=<sessionId>.<issuedAt>.<hmac>
 ```
 
 ### `POST /api/wish`: three partial updates for one wish
@@ -695,4 +697,4 @@ All settings are environment variables in one `.env` at the repo root, read by b
 - **Personal data.** `participant_code` is whatever name the student typed, and free-text fields may contain personal details. Export, back up, then delete after the study.
 - **Placeholder archetype quiz.** The fixed quiz and its archetype names are stand-ins (`archetypes.py` says "PLACEHOLDER"). It is only shown when question generation fails.
 - **Dead setting.** `SHUFFLE_POSITIONS` is in `.env.example` and `config.py`, but nothing reads it. Options are shown in the order the model returned them.
-- **Going public.** Rate limits, signed session and admin cookies, body size caps, security headers and an HTTPS proxy all need porting from the `public-hardening` tag to FastAPI first. See `docs/GOING-PUBLIC.md`.
+- **Going public.** The security layer and a public compose stack are in place (`docs/DEPLOY.md`). Still missing for an open audience: paid model tier, accounts instead of names, data deletion, monitoring (`docs/GOING-PUBLIC.md`).

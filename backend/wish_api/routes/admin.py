@@ -9,7 +9,10 @@ from sqlalchemy import delete, select, text
 
 from .. import analytics as an
 from .. import db
-from ..admin_auth import ADMIN_COOKIE, is_admin, password_ok, token_for
+from ..admin_auth import ADMIN_COOKIE, ADMIN_MAX_AGE_S, admin_password_problem, is_admin, new_admin_token, password_ok
+from ..config import config
+from ..rate_limit import limited, rules
+from ..security import client_ip, is_https, is_local
 from ..admin_data import load_data, parse_filters
 from ..csv_export import to_csv
 from ..jsutil import js_number, js_str
@@ -27,14 +30,20 @@ UNAUTH = lambda: JSONResponse({"ok": False}, status_code=401)  # noqa: E731
 
 @router.post("/login")
 async def login(req: Request):
-    body = await read_json(req)
+    if rl := limited((rules.login_ip, client_ip(req))):
+        return rl
+    if problem := admin_password_problem():
+        return JSONResponse({"ok": False, "error": f"{problem} Set it in .env and restart."}, status_code=503)
+    # Over plain http from another machine the password crosses the network in cleartext.
+    if not is_https(req) and not is_local(req) and not config.admin_allow_http:
+        return JSONResponse({"ok": False, "error": "Open admin over https, or on localhost."}, status_code=403)
+    body = await read_json(req, 1024)
     pw = body.get("password") if isinstance(body, dict) else None
-    if not pw or not isinstance(pw, str) or not password_ok(pw):
+    if not pw or not isinstance(pw, str) or not await password_ok(pw):
         return JSONResponse({"ok": False, "error": "Wrong password."}, status_code=401)
     res = JSONResponse({"ok": True})
-    # Secure only over HTTPS: a Secure cookie is dropped on plain-http LAN URLs (e.g. http://192.168.x.x:8000).
-    https = (req.headers.get("x-forwarded-proto") or req.url.scheme) == "https"
-    res.set_cookie(ADMIN_COOKIE, token_for(pw), httponly=True, samesite="lax", path="/", max_age=60 * 60 * 12, secure=https)
+    # Secure only over HTTPS: a Secure cookie is dropped on plain-http URLs.
+    res.set_cookie(ADMIN_COOKIE, await new_admin_token(), httponly=True, samesite="strict", path="/", max_age=ADMIN_MAX_AGE_S, secure=is_https(req))
     return res
 
 
@@ -51,9 +60,11 @@ class Simple(BaseModel):
 @router.post("/models")
 async def models(req: Request):
     """Admin model controls: choose which model to try first, ping every model, or re-list available models."""
-    if not is_admin(req):
+    if not await is_admin(req):
         return UNAUTH()
-    body = await read_json(req)
+    if rl := limited((rules.admin_models_ip, client_ip(req))):
+        return rl
+    body = await read_json(req, 1024)
     action = body.get("action") if isinstance(body, dict) else None
     if action == "prefer" and "id" in body and (body["id"] is None or isinstance(body["id"], str)):
         await set_preferred_backend(body["id"])
@@ -99,7 +110,7 @@ async def _test_sessions(c) -> list[dict]:
 @router.get("/delete-test")
 async def delete_test_preview(req: Request):
     """Preview: which sessions a delete would remove."""
-    if not is_admin(req):
+    if not await is_admin(req):
         return UNAUTH()
     async with db.engine().connect() as c:
         s = await _test_sessions(c)
@@ -109,9 +120,9 @@ async def delete_test_preview(req: Request):
 @router.post("/delete-test")
 async def delete_test(req: Request):
     """Deletes test sessions (and their events, wishes, generated moves). The client passes the count it previewed."""
-    if not is_admin(req):
+    if not await is_admin(req):
         return UNAUTH()
-    body = await read_json(req)
+    body = await read_json(req, 1024)
     expect = body.get("expect") if isinstance(body, dict) else None
     async with db.engine().begin() as c:
         ids = [s["id"] for s in await _test_sessions(c)]
@@ -127,7 +138,7 @@ async def delete_test(req: Request):
 
 @router.get("/export/{kind}")
 async def export(kind: str, req: Request):
-    if not is_admin(req):
+    if not await is_admin(req):
         return Response("Unauthorized", status_code=401)
     d = await load_data(parse_filters(dict(req.query_params)))
     rows = (an.events_rows(d["events"]) if kind == "events" else an.choices_rows(d["events"], d["wishes"]) if kind == "choices"
@@ -174,7 +185,7 @@ def _tally(xs: list[str]) -> dict[str, int]:
 @router.get("/dashboard")
 async def dashboard(req: Request):
     """Everything the admin page shows, computed here (the page only renders it)."""
-    if not is_admin(req):
+    if not await is_admin(req):
         return UNAUTH()
     try:
         d = await load_data(parse_filters(dict(req.query_params)))

@@ -12,6 +12,11 @@ def env(k: str, d: str = "") -> str:
     return os.environ.get(k, d)
 
 
+def flag(k: str, d: bool = False) -> bool:
+    v = env(k).strip().lower()
+    return d if not v else v in ("1", "true", "yes")
+
+
 def _provider() -> str:
     """auto: every available model (Gemini, then Groq/OpenRouter if keyed, then local Ollama). gemini/ollama: only that service."""
     p = env("MOVE_PROVIDER")
@@ -44,6 +49,15 @@ class Config:
     data_dir = Path(env("DATA_DIR", str(ROOT / "data")))
     # Browser origins allowed to call the API with cookies. Empty = localhost and private LAN addresses on any port.
     cors_origins = [o.strip() for o in env("CORS_ORIGINS").split(",") if o.strip()]
+    # Public deployment (docker-compose.public.yml): API docs off, HSTS on. Behind a proxy that owns X-Forwarded-*.
+    public_mode = flag("PUBLIC_MODE")
+    # Trust X-Forwarded-For/-Proto/-Host. Only behind a proxy that overwrites them (Caddy does); otherwise clients pick their own IP.
+    trust_proxy = flag("TRUST_PROXY", public_mode)
+    # Key for the session and admin cookies; empty = a random key kept in the settings table.
+    session_secret = env("SESSION_SECRET")
+    rate_limit = flag("RATE_LIMIT", True)
+    # Admin login over plain http from another machine sends the password in cleartext; refused unless this is set.
+    admin_allow_http = flag("ADMIN_ALLOW_HTTP")
 
 
 config = Config()

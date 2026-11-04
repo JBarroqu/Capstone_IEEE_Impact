@@ -8,7 +8,7 @@ const retryable = (status: number) => status === 0 || status === 429 || status >
 /** POST with up to `tries` attempts on network errors, 429 and 5xx (backing off, honouring Retry-After). 4xx fails at once. */
 export async function postRaw(url: string, body: unknown, tries = 3): Promise<Response> {
   for (let i = 1; ; i++) {
-    // The API is on another origin; credentials so the admin cookie (same site, other port) goes along.
+    // Locally the API is on another origin (same site, other port); credentials so the session and admin cookies go along.
     const res = await fetch(apiUrl(url), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
       .catch(() => new Response(null, { status: 0 } as ResponseInit));
     if (res.ok || !retryable(res.status) || i >= tries) return res;
@@ -17,12 +17,18 @@ export async function postRaw(url: string, body: unknown, tries = 3): Promise<Re
   }
 }
 
-/** Creates the server session row right after consent, with retries. */
+// Every call except /api/session waits for the session cookie, which the other routes require.
+let sessionReady: Promise<unknown> = Promise.resolve();
+export const whenSessionReady = () => sessionReady;
+
+/** Creates the server session (and its signed cookie) right after consent, with retries. Later calls wait for it. */
 export function startSession(body: { sessionId: string; participantCode: string; consented: true }) {
-  postRaw("/api/session", body, 5).catch(() => {});
+  sessionReady = postRaw("/api/session", body, 5).catch(() => {});
+  return sessionReady;
 }
 
 export async function postJson(url: string, body: unknown, tries = 3): Promise<any> {
+  await sessionReady;
   const res = await postRaw(url, body, tries);
   if (!res.ok) throw new Error(`${url} ${res.status}`);
   return res.json();
@@ -39,6 +45,7 @@ export class OptionsError extends Error {
   constructor(public reason: string) { super(`options failed: ${reason}`); }
 }
 export async function fetchOptions(body: unknown): Promise<OptionsResponse> {
+  await sessionReady;
   // One try: the server already walks the model chain, and the student gets a retry button on failure.
   const res = await postRaw("/api/options", body, 1);
   const r = await res.json().catch(() => ({}));

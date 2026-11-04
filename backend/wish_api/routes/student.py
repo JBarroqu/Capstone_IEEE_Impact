@@ -1,8 +1,10 @@
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, conlist
+from sqlalchemy import and_
 from sqlalchemy.dialects.postgresql import insert
 
 from .. import db
@@ -17,6 +19,8 @@ from ..providers.errors import LlmUnavailable
 from ..providers.llm import run_chain
 from ..providers.options import get_options
 from ..providers.run import LlmTask
+from ..rate_limit import limited, rules
+from ..security import client_ip, current_session, issue_session
 from ..vocab import Archetype, Domain, Focus, Format
 from .common import UUID_RE, ok, parse, read_json
 
@@ -27,7 +31,7 @@ Uuid = Field(pattern=UUID_RE)
 
 
 class Prior(BaseModel):
-    chips: conlist(str, max_length=10)
+    chips: conlist(Annotated[str, Field(max_length=40)], max_length=10)
     text: str | None = Field(default=None, max_length=1000)
 
 
@@ -44,17 +48,22 @@ async def get_config():
     return {"flowMoves": config.flow_moves, "consent": {"intro": CONSENT_INTRO, "data": consent_remote(remote) if remote else CONSENT_LOCAL}}
 
 
+NO_SESSION = lambda: JSONResponse({"ok": False, "reason": "no_session"}, status_code=401)  # noqa: E731
+
+
 class SessionBody(BaseModel):
     sessionId: str = Uuid
-    participantCode: str = Field(max_length=64)
+    participantCode: str = Field(min_length=1, max_length=64)
     consented: bool
 
 
 @router.post("/session")
 async def session(req: Request):
-    """Called only after consent. Creates the session row."""
-    p = parse(SessionBody, await read_json(req))
-    if isinstance(p, JSONResponse) or not p.consented:
+    """Called only after consent. Creates the session row and the signed cookie the other routes check."""
+    if rl := limited((rules.session_ip, client_ip(req)), (rules.session_all, "all")):
+        return rl
+    p = parse(SessionBody, await read_json(req, 1024))
+    if isinstance(p, JSONResponse) or not p.consented or not p.participantCode.strip():
         return JSONResponse({"ok": False}, status_code=400)
     try:
         async with db.engine().begin() as c:
@@ -64,7 +73,9 @@ async def session(req: Request):
     except Exception:
         log.exception("session insert failed")
         return JSONResponse({"ok": False, "reason": "db"}, status_code=503)
-    return ok(provider=config.provider)
+    res = JSONResponse(ok(provider=config.provider))
+    await issue_session(res, req, p.sessionId)
+    return res
 
 
 class WishBody(BaseModel):
@@ -90,15 +101,21 @@ WISH_COLS = {"text": "text", "fromChip": "from_chip", "type": "type", "focus": "
 @router.post("/wish")
 async def wish(req: Request):
     """Upsert a wish; later screens send partial updates for the same id."""
-    p = parse(WishBody, await read_json(req))
+    if rl := limited((rules.write_ip, client_ip(req))):
+        return rl
+    p = parse(WishBody, await read_json(req, 8192))
     if isinstance(p, JSONResponse):
         return p
+    if await current_session(req) != p.sessionId:
+        return NO_SESSION()
     # Only the fields the client sent, like the zod-parsed object did.
     rest = {WISH_COLS[k]: v for k, v in p.model_dump(exclude_unset=True, exclude={"id", "sessionId"}).items()}
     try:
         # True upsert: client updates for one wish can arrive out of order, so insert-or-update in one statement.
         stmt = insert(db.wishes).values(id=p.id, session_id=p.sessionId, **{**rest, "text": rest.get("text") or ""})
-        stmt = stmt.on_conflict_do_update(index_elements=[db.wishes.c.id], set_=rest) if rest else stmt.on_conflict_do_nothing()
+        # where: an existing wish can only be changed by the session that created it.
+        stmt = (stmt.on_conflict_do_update(index_elements=[db.wishes.c.id], set_=rest, where=and_(db.wishes.c.session_id == p.sessionId))
+                if rest else stmt.on_conflict_do_nothing())
         async with db.engine().begin() as c:
             await c.execute(stmt)
     except Exception:
@@ -122,9 +139,17 @@ async def classify(req: Request):
     keyword classifier answers instead (source: "keywords") rather than blocking the student."""
     import time
 
-    p = parse(ClassifyBody, await read_json(req))
+    if rl := limited((rules.classify_ip, client_ip(req))):
+        return rl
+    p = parse(ClassifyBody, await read_json(req, 4096))
     if isinstance(p, JSONResponse):
         return p
+    session = await current_session(req)
+    if not session:
+        return NO_SESSION()
+    # Classification shares the per-session model budget with options.
+    if rl := limited((rules.options_session, session), (rules.classify_all, "all")):
+        return rl
     t0 = time.monotonic()
     try:
         r = await run_chain(LlmTask(schema=classify_json_schema, build=lambda h: build_classify_prompt(p.wishText, h), parse=parse_classify),
@@ -153,9 +178,16 @@ async def questions(req: Request):
     like classification falls back to keywords; it only steers the moves, so it never blocks the student."""
     import time
 
-    p = parse(QuestionsBody, await read_json(req))
+    if rl := limited((rules.classify_ip, client_ip(req))):
+        return rl
+    p = parse(QuestionsBody, await read_json(req, 8192))
     if isinstance(p, JSONResponse):
         return p
+    session = await current_session(req)
+    if not session:
+        return NO_SESSION()
+    if rl := limited((rules.options_session, session), (rules.questions_all, "all")):
+        return rl
     ctx = p.model_dump()
     t0 = time.monotonic()
     try:
@@ -218,11 +250,19 @@ class OptionsBody(BaseModel):
 
 @router.post("/options")
 async def options(req: Request):
-    p = parse(OptionsBody, await read_json(req))
+    if rl := limited((rules.options_ip, client_ip(req))):
+        return rl
+    p = parse(OptionsBody, await read_json(req, 32_768))
     if isinstance(p, JSONResponse):
         return p
+    # Model calls only for a session that went through consent; the session comes from the signed cookie, not the body.
+    session = await current_session(req)
+    if not session or (p.sessionId and p.sessionId != session):
+        return NO_SESSION()
+    if rl := limited((rules.options_session, session), (rules.options_all, "all")):
+        return rl
     try:
-        result = await get_options(_js_numbers(p.model_dump()))
+        result = await get_options(_js_numbers({**p.model_dump(), "sessionId": session}))
         return ok(**result)
     except Exception as e:
         log.error("options failed: %s", e)
@@ -244,12 +284,20 @@ def _js_numbers(v):
 async def events(req: Request):
     """Batches from lib/track.ts (sent as text/plain so cross-origin beacons work). Event ids come from the client,
     so a retried batch is not stored twice."""
-    data = await read_json(req)
+    if rl := limited((rules.events_ip, client_ip(req))):
+        return rl
+    # 64 KB is far above a real batch (100 events of a few hundred bytes).
+    data = await read_json(req, 65_536)
     if data is None:
         return JSONResponse({"ok": False}, status_code=400)
     p = parse(EventBatch, data)
     if isinstance(p, JSONResponse):
         return p
+    session = await current_session(req)
+    if not session or any(e.sessionId != session for e in p.events):
+        return NO_SESSION()
+    if rl := limited((rules.events_session, session)):
+        return rl
     rows = []
     for e in p.events:
         row = {

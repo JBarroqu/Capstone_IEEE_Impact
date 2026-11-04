@@ -5,7 +5,7 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 Two processes: the **Next.js frontend** (pages only) and the **FastAPI backend** in `backend/` (every `/api` route, the model chain, prompts, analytics). The browser calls the API directly on the same host, port 8000 by default.
 
 ## Run it (Docker)
-This is the normal way to run the whole app. Needs Docker Desktop and a `.env` (copy `.env.example`; set `GEMINI_API_KEY`, `ADMIN_PASSWORD`, optionally `FLOW_MOVES`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Containers: `db`, `migrate` (creates tables, exits), `api` (FastAPI, one worker) and `app` (Next.js). Built for local and LAN test sessions only; see `docs/GOING-PUBLIC.md` before exposing it to the internet.
+This is the normal way to run the whole app. Needs Docker Desktop and a `.env` (copy `.env.example`; set `GEMINI_API_KEY`, `ADMIN_PASSWORD`, optionally `FLOW_MOVES`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Containers: `db`, `migrate` (creates tables, exits), `api` (FastAPI, one worker) and `app` (Next.js). This stack is for the laptop and LAN; for the internet use the public stack below.
 ```
 docker compose up -d --build     # app on http://localhost:3010, admin at /admin, API on :8000 (docs at /docs)
 docker compose ps                # all running; migrate shows "Exited (0)", which is expected
@@ -14,6 +14,9 @@ docker compose down              # stop (data is kept in the pgdata volume)
 docker compose down -v           # stop and delete all data
 ```
 Other devices on the same Wi-Fi open `http://<your-mac-ip>:3010`; the browser reaches the API on the same host at :8000, so nothing else needs setting. `PORT=3020 API_PORT=8020 docker compose up -d --build` picks other ports (the API port is baked into the frontend build, hence `--build`). After code or `.env` changes, run `docker compose up -d --build` again. Tables are created on every start by the `migrate` service. Ollama on the Mac is reached at `host.docker.internal:11434`. Smoke test against the containers: `BASE_URL=http://localhost:3010 npx tsx scripts/e2e.ts`.
+
+## Deploy on the internet
+`docker compose -f docker-compose.public.yml up -d --build` on a server with a domain: Caddy serves the pages and the API on `https://DOMAIN` with a Let's Encrypt certificate, and only ports 80/443 are open. Needs `DOMAIN`, `POSTGRES_PASSWORD`, `ADMIN_PASSWORD` (8+ characters) and `GEMINI_API_KEY` in `.env`. Steps and what it turns on: `docs/DEPLOY.md`; security details: `docs/SECURITY.md`; what is still missing for an open audience: `docs/GOING-PUBLIC.md`.
 
 ## Developing without Docker
 Hot reload for code changes. Uses a local Postgres instead of the container's.

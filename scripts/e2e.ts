@@ -1,6 +1,6 @@
 /**
  * End-to-end smoke test: drives a full student session in headless Chrome.
- * Usage: BASE_URL=http://localhost:3000 npx tsx scripts/e2e.ts [--phone] [--shots=dir]
+ * Usage: BASE_URL=http://localhost:3000 npx tsx scripts/e2e.ts [--phone] [--shots=dir]   (BASE_URL=https://localhost for the public stack)
  * Needs the dev server running and Google Chrome installed (CHROME_PATH to override).
  */
 import { chromium } from "playwright-core";
@@ -12,7 +12,8 @@ const shots = process.argv.find((a) => a.startsWith("--shots="))?.slice(8);
 (async () => {
   let pageRef: import("playwright-core").Page | undefined;
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
-  const page = await browser.newPage({ viewport: phone ? { width: 390, height: 844 } : { width: 1280, height: 800 } });
+  // https://localhost is the public stack on a laptop (docker-compose.public.yml with DOMAIN=localhost): Caddy's own certificate.
+  const page = await browser.newPage({ viewport: phone ? { width: 390, height: 844 } : { width: 1280, height: 800 }, ignoreHTTPSErrors: base.startsWith("https://localhost") });
   pageRef = page;
   const errors: string[] = [];
   process.on("exit", () => {});

@@ -1,0 +1,75 @@
+# Public deployment: docker compose -f docker-compose.public.yml up -d --build   (see docs/DEPLOY.md)
+# Caddy is the only published service (ports 80 and 443) and serves the pages and /api on https://DOMAIN.
+# The API and the app are reachable only through it, so X-Forwarded-For is always Caddy's.
+# Needs in .env: DOMAIN, POSTGRES_PASSWORD, ADMIN_PASSWORD (8+ characters), GEMINI_API_KEY.
+# Separate project name: its database volume is not the one the local docker-compose.yml uses.
+name: wish-engine-public
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: wish
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: wish_engine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wish -d wish_engine"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    command: ["python", "scripts/migrate.py"]
+    environment:
+      DATABASE_URL: postgres://wish:${POSTGRES_PASSWORD}@db:5432/wish_engine
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://wish:${POSTGRES_PASSWORD}@db:5432/wish_engine
+      PUBLIC_MODE: "true"
+      TRUST_PROXY: "true"
+      CORS_ORIGINS: https://${DOMAIN:?set DOMAIN in .env}
+    expose: ["8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      target: runner
+      # The browser calls /api on the page's own origin; Caddy routes it to the api container.
+      args: { NEXT_PUBLIC_API_URL: same-origin }
+    environment:
+      API_URL: http://api:8000
+    expose: ["3000"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2.10-alpine
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    depends_on: [app]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:

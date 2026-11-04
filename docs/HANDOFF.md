@@ -12,7 +12,7 @@ A student names a wish. The engine asks three generated follow-up questions, the
 |---|---|
 | Built | Full student flow. Every locked move is stored in Postgres with its context, the model that wrote it, and the later rating. |
 | Not built | Any API or push for your module. The `SelectedMove` shape below is a **proposal**: every field exists in the database today, so producing it is a join, not new data collection. |
-| Not built | Public hardening. The engine runs on a laptop or LAN only; see `docs/GOING-PUBLIC.md`. |
+| Built | Public deployment: one https domain behind Caddy, signed session cookie, rate limits (`docs/DEPLOY.md`). |
 
 **Recommendation:** a pull endpoint on the FastAPI backend, `GET /api/handoff/{wishId}`, that returns `SelectedMove`. A push to your module when the move is locked would need a retry queue, and it would fire before the rating exists.
 

@@ -9,9 +9,12 @@ let queue: ClientEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let consented = false;
 let failures = 0;
+let ready: () => Promise<unknown> = () => Promise.resolve();
 
 export function setTrackContext(c: Ctx) { ctx = c; }
 export function setConsent(v: boolean) { consented = v; }
+/** Batches wait for this (the session cookie, which /api/events requires) before sending. */
+export function setReady(fn: () => Promise<unknown>) { ready = fn; }
 
 export function track(name: ClientEvent["name"], payload: Record<string, unknown> = {}, step?: number | null) {
   if (!ctx || !consented) return;
@@ -45,7 +48,9 @@ export function flush(useBeacon = false) {
     schedule(Math.min(60_000, 2000 * 2 ** (failures - 1)));
   };
   // text/plain keeps this a "simple" request (no CORS preflight), which keepalive needs to survive page close.
-  fetch(apiUrl("/api/events"), { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ events: batch }), keepalive: true })
+  // credentials: the session cookie must go along when the API is on another port (locally). Beacons always send it.
+  ready()
+    .then(() => fetch(apiUrl("/api/events"), { method: "POST", credentials: "include", headers: { "content-type": "text/plain" }, body: JSON.stringify({ events: batch }), keepalive: true }))
     .then((res) => {
       // 4xx (other than 429) will not get better by retrying; drop the batch rather than loop.
       if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) { failures = 0; if (queue.length) schedule(0); }
