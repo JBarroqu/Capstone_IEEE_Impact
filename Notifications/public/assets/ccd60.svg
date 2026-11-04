@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="faSprout" clip-path="url(#clip0_0_151)">
+<path id="Vector" d="M25 1.5625C25 7.10938 20.8691 11.6943 15.5176 12.4023C15.1709 9.79492 14.0234 7.44141 12.3291 5.60059C14.1992 2.26074 17.7734 0 21.875 0H23.4375C24.3018 0 25 0.698242 25 1.5625ZM0 4.6875C0 3.82324 0.698242 3.125 1.5625 3.125H3.125C9.16504 3.125 14.0625 8.02246 14.0625 14.0625V15.625V23.4375C14.0625 24.3018 13.3643 25 12.5 25C11.6357 25 10.9375 24.3018 10.9375 23.4375V15.625C4.89746 15.625 0 10.7275 0 4.6875Z" fill="#059F9B"/>
+</g>
+<defs>
+<clipPath id="clip0_0_151">
+<rect width="25" height="25" fill="white"/>
+</clipPath>
+</defs>
+</svg>
