@@ -11,7 +11,7 @@ Two apps: a **Next.js frontend** (pages only, no `/api` routes) and a **FastAPI 
 - Content is pitched at senior ASU CS majors. No emoji, no "AI"/"smart" wording, say "moves"/"options".
 
 ## Commands
-`npm run api` (FastAPI :8000, `/docs` for the OpenAPI page; first time `npm run api:setup`) + `npm run dev` (pages :3000) · `npm test` (vitest frontend + pytest backend, no live LLM calls) · `npm run typecheck` · `npm run db:push` (`backend/scripts/migrate.py`: create_all + `ADDED_COLUMNS`) · `npm run seed` · `npm run llm:check [wish] [--all]` · `npm run export` · `npm run backup` · `npx tsx scripts/e2e.ts` (browser smoke test, needs API + dev server + Chrome; `BASE_URL=` for another port) · `docker compose up -d --build` (db, migrate, api :8000, app :3010)
+`docker compose up -d --build` is the normal way to run it (db, migrate, api :8000, app :3010) · without Docker: `npm run api` (FastAPI :8000, `/docs` for the OpenAPI page; first time `npm run api:setup`) + `npm run dev` (pages :3000) · `npm test` (vitest frontend + pytest backend, no live LLM calls) · `npm run typecheck` · `npm run db:push` (`backend/scripts/migrate.py`: create_all + `ADDED_COLUMNS`) · `npm run seed` · `npm run llm:check [wish] [--all]` · `npm run export` · `npm run backup` · `npx tsx scripts/e2e.ts` (browser smoke test, needs API + dev server + Chrome; `BASE_URL=` for another port)
 
 ## Layout
 - `data/` wishes.json (starter chips, also bundled into the frontend), keywords.json (classifier fallback). No moves.

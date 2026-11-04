@@ -4,21 +4,23 @@ Laptop-first prototype for user-testing move options. See `docs/PROMPT.md` for t
 
 Two processes: the **Next.js frontend** (pages only) and the **FastAPI backend** in `backend/` (every `/api` route, the model chain, prompts, analytics). The browser calls the API directly on the same host, port 8000 by default.
 
-## Setup
-1. `npm install`, then `npm run api:setup` (creates `backend/.venv` with Python 3.13 and installs `backend/requirements.txt`).
-2. Copy `.env.example` to `.env`; set `DATABASE_URL` (local Postgres: `createdb -h 127.0.0.1 wish_engine`, then `postgres://<your-mac-username>@127.0.0.1:5432/wish_engine`; Neon/Supabase also work if you ever deploy), `ADMIN_PASSWORD`, and `GEMINI_API_KEY`. The API reads the same `.env`.
-3. `npm run db:push` to create tables, `npm run seed` to validate `data/wishes.json`.
-4. In two terminals: `npm run api` (FastAPI on :8000, API docs at http://localhost:8000/docs) and `npm run dev` (pages on :3000). For other devices on your Wi-Fi: `npm run api:lan` and `npm run dev:lan`.
-
-## Docker (alternative to the setup above)
-Needs Docker Desktop and a `.env` (API keys, `ADMIN_PASSWORD`, `FLOW_MOVES`, ...). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Containers: `db`, `migrate` (creates tables, exits), `api` (FastAPI, one worker) and `app` (Next.js). Built for local and LAN test sessions only; see `docs/GOING-PUBLIC.md` before exposing it to the internet.
+## Run it (Docker)
+This is the normal way to run the whole app. Needs Docker Desktop and a `.env` (copy `.env.example`; set `GEMINI_API_KEY`, `ADMIN_PASSWORD`, optionally `FLOW_MOVES`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`). `DATABASE_URL` in `.env` is ignored; Compose runs its own Postgres. Containers: `db`, `migrate` (creates tables, exits), `api` (FastAPI, one worker) and `app` (Next.js). Built for local and LAN test sessions only; see `docs/GOING-PUBLIC.md` before exposing it to the internet.
 ```
-docker compose up -d --build     # app on http://localhost:3010, admin at /admin, API on :8000
+docker compose up -d --build     # app on http://localhost:3010, admin at /admin, API on :8000 (docs at /docs)
+docker compose ps                # all running; migrate shows "Exited (0)", which is expected
 docker compose logs -f api       # API logs (model calls, errors)
 docker compose down              # stop (data is kept in the pgdata volume)
 docker compose down -v           # stop and delete all data
 ```
-`PORT=3020 API_PORT=8020 docker compose up -d --build` picks other ports (the API port is baked into the frontend build, hence `--build`). `npm run backup` dumps the database to `backups/`. Tables are created on every start by the `migrate` service. After code changes, rebuild with `docker compose up -d --build`. Ollama on the Mac is reached at `host.docker.internal:11434`.
+Other devices on the same Wi-Fi open `http://<your-mac-ip>:3010`; the browser reaches the API on the same host at :8000, so nothing else needs setting. `PORT=3020 API_PORT=8020 docker compose up -d --build` picks other ports (the API port is baked into the frontend build, hence `--build`). After code or `.env` changes, run `docker compose up -d --build` again. Tables are created on every start by the `migrate` service. Ollama on the Mac is reached at `host.docker.internal:11434`. Smoke test against the containers: `BASE_URL=http://localhost:3010 npx tsx scripts/e2e.ts`.
+
+## Developing without Docker
+Hot reload for code changes. Uses a local Postgres instead of the container's.
+1. `npm install`, then `npm run api:setup` (creates `backend/.venv` with Python 3.13 and installs `backend/requirements.txt`).
+2. In `.env`, set `DATABASE_URL` (local Postgres: `createdb -h 127.0.0.1 wish_engine`, then `postgres://<your-mac-username>@127.0.0.1:5432/wish_engine`). The API reads the same `.env`.
+3. `npm run db:push` to create tables, `npm run seed` to validate `data/wishes.json`.
+4. In two terminals: `npm run api` (FastAPI on :8000) and `npm run dev` (pages on :3000). For other devices on your Wi-Fi: `npm run api:lan` and `npm run dev:lan`. Stop the Docker stack first (`docker compose down`), since both use port 8000.
 
 ## Models (`MOVE_PROVIDER`)
 - `auto` (default): every available model with automatic failover. Gemini models are discovered from the API (no model setting needed); Groq / OpenRouter join if `GROQ_API_KEY` / `OPENROUTER_API_KEY` is set; a local Ollama joins if it is running.
