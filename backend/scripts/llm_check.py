@@ -6,14 +6,16 @@ import json
 import sys
 import time
 
-from wish_api.config import config
-from wish_api.prompts.classify_v1 import build_classify_prompt, classify_json_schema, parse_classify
-from wish_api.prompts.questions_v1 import QUESTIONS_TEMPERATURE, build_questions_prompt, parse_questions, questions_json_schema
-from wish_api.providers.backends import get_backends
-from wish_api.providers.health import Health
-from wish_api.providers.llm import chain_options, run_chain
-from wish_api.providers.run import LlmTask
-from wish_api.providers.validate import RawMove
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from app.config import config
+from app.modules.wish.prompts.classify_v1 import build_classify_prompt, classify_json_schema, parse_classify
+from app.modules.wish.prompts.questions_v1 import QUESTIONS_TEMPERATURE, build_questions_prompt, parse_questions, questions_json_schema
+from app.llm.backends import get_backends
+from app.llm.health import Health
+from app.llm.chain import run_chain
+from app.modules.wish.movegen import chain_options
+from app.llm.run import LlmTask
 
 args = sys.argv[1:]
 check_all = "--all" in args
@@ -66,12 +68,17 @@ async def main() -> int:
         ok = False
         print(f"\nquestions FAILED: {e}")
 
-    req = {"ctx": {**base, "followUps": follow_ups, "chosen": []}, "step": 1, "excludeIds": [], "rerollIndex": 0}
+    req = {"ctx": {**base, "followUps": follow_ups, "chosen": []}, "step": 1, "excludeIds": [], "rerollIndex": 0,
+           "skills": [{"id": "programming", "name": "Programming"}, {"id": "git", "name": "Git & Version Control"},
+                      {"id": "testing", "name": "Software Testing"}, {"id": "databases", "name": "Databases"},
+                      {"id": "systems", "name": "System Design"}],
+           "profile": {"targetCareer": "Software Engineer", "major": "Computer Science", "skills": ["Python", "Java"],
+                       "growthAreas": ["industry experience"]}}
     try:
         r = await chain_options(req)
         print("")
         for i, m in enumerate(r["moves"]):
-            print(f"{i + 1}. [{m['cost']}, {m['minutes']}m, {m['format']}] {m['title']}\n   {m['detail']}")
+            print(f"{i + 1}. [{m['cost']}, {m['minutes']}m, {m['format']}; {m['activityType']}/{m['difficulty']}/{m['skillId']}] {m['title']}\n   {m['detail']}")
         valid = len(r["moves"]) == 3 and all(_valid(m) for m in r["moves"])
         meta = r["meta"]
         skipped = f" skipped={', '.join(meta['tried'])}" if meta.get("tried") else ""
@@ -85,11 +92,7 @@ async def main() -> int:
 
 
 def _valid(m: dict) -> bool:
-    try:
-        RawMove.model_validate(m)
-        return True
-    except Exception:
-        return False
+    return all(m.get(k) for k in ("title", "detail", "activityType", "difficulty", "skillId"))
 
 
 async def _one(b):

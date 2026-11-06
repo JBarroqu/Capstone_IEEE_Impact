@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "review_requested",
+        "revise_evidence",
+        "submit_evidence",
+        "invite_buddy",
+        "await_buddy",
+        "next_move_ready",
+        "start_wish",
+        "complete_profile",
+        "none"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "link": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Link"
+    },
+    "priority": {
+      "title": "Priority",
+      "type": "integer"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "refs": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Refs",
+      "type": "object"
+    },
+    "schemaVersion": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "reason",
+    "priority",
+    "link"
+  ],
+  "title": "BestNextMoveTrigger",
+  "type": "object"
+}

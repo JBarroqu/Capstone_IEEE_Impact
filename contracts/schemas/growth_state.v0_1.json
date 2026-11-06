@@ -1,0 +1,446 @@
+{
+  "$defs": {
+    "Badge": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "earned": {
+          "title": "Earned",
+          "type": "boolean"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "rarity": {
+          "title": "Rarity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "rarity",
+        "description",
+        "earned"
+      ],
+      "title": "Badge",
+      "type": "object"
+    },
+    "Gate": {
+      "additionalProperties": false,
+      "properties": {
+        "met": {
+          "title": "Met",
+          "type": "boolean"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "met"
+      ],
+      "title": "Gate",
+      "type": "object"
+    },
+    "Outcome": {
+      "additionalProperties": false,
+      "properties": {
+        "aiScore": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aiscore"
+        },
+        "buddyComment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Buddycomment"
+        },
+        "evidenceId": {
+          "title": "Evidenceid",
+          "type": "string"
+        },
+        "feedbackSummary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feedbacksummary"
+        },
+        "finalQuality": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finalquality"
+        },
+        "peerConfirmed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peerconfirmed"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "selectedMoveId": {
+          "title": "Selectedmoveid",
+          "type": "string"
+        },
+        "skillId": {
+          "title": "Skillid",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidenceId",
+        "selectedMoveId",
+        "skillId",
+        "status"
+      ],
+      "title": "Outcome",
+      "type": "object"
+    },
+    "SkillState": {
+      "additionalProperties": false,
+      "properties": {
+        "core": {
+          "title": "Core",
+          "type": "boolean"
+        },
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/Gate"
+          },
+          "title": "Gates",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nextThreshold": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Nextthreshold"
+        },
+        "nextTier": {
+          "anyOf": [
+            {
+              "enum": [
+                "Not started",
+                "Familiar",
+                "Proficient",
+                "Demonstrated",
+                "Verified"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Nexttier"
+        },
+        "pendingPoints": {
+          "title": "Pendingpoints",
+          "type": "number"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "progress": {
+          "title": "Progress",
+          "type": "number"
+        },
+        "skillId": {
+          "title": "Skillid",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "Not started",
+            "Familiar",
+            "Proficient",
+            "Demonstrated",
+            "Verified"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skillId",
+        "name",
+        "core",
+        "points",
+        "pendingPoints",
+        "tier",
+        "nextTier",
+        "nextThreshold",
+        "progress"
+      ],
+      "title": "SkillState",
+      "type": "object"
+    },
+    "Totals": {
+      "additionalProperties": false,
+      "properties": {
+        "effortBanked": {
+          "title": "Effortbanked",
+          "type": "number"
+        },
+        "effortCounted": {
+          "title": "Effortcounted",
+          "type": "number"
+        },
+        "effortRaw": {
+          "title": "Effortraw",
+          "type": "number"
+        },
+        "impact": {
+          "title": "Impact",
+          "type": "number"
+        },
+        "pending": {
+          "title": "Pending",
+          "type": "number"
+        },
+        "validated": {
+          "title": "Validated",
+          "type": "number"
+        }
+      },
+      "required": [
+        "validated",
+        "pending",
+        "effortRaw",
+        "effortCounted",
+        "effortBanked",
+        "impact"
+      ],
+      "title": "Totals",
+      "type": "object"
+    },
+    "Unlock": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "real",
+            "seeded",
+            "flag",
+            "display"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "opportunityId": {
+          "title": "Opportunityid",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "Not started",
+            "Familiar",
+            "Proficient",
+            "Demonstrated",
+            "Verified"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "unlockedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unlockedat"
+        }
+      },
+      "required": [
+        "opportunityId",
+        "title",
+        "tier",
+        "kind"
+      ],
+      "title": "Unlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "badges": {
+      "items": {
+        "$ref": "#/$defs/Badge"
+      },
+      "title": "Badges",
+      "type": "array"
+    },
+    "careerId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Careerid"
+    },
+    "catalogVersion": {
+      "title": "Catalogversion",
+      "type": "string"
+    },
+    "computedAt": {
+      "format": "date-time",
+      "title": "Computedat",
+      "type": "string"
+    },
+    "lockedOpportunities": {
+      "items": {
+        "$ref": "#/$defs/Unlock"
+      },
+      "title": "Lockedopportunities",
+      "type": "array"
+    },
+    "recentOutcomes": {
+      "items": {
+        "$ref": "#/$defs/Outcome"
+      },
+      "title": "Recentoutcomes",
+      "type": "array"
+    },
+    "roleTier": {
+      "enum": [
+        "Not started",
+        "Familiar",
+        "Proficient",
+        "Demonstrated",
+        "Verified"
+      ],
+      "title": "Roletier",
+      "type": "string"
+    },
+    "rulesVersion": {
+      "title": "Rulesversion",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "skills": {
+      "items": {
+        "$ref": "#/$defs/SkillState"
+      },
+      "title": "Skills",
+      "type": "array"
+    },
+    "totals": {
+      "$ref": "#/$defs/Totals"
+    },
+    "unlocks": {
+      "items": {
+        "$ref": "#/$defs/Unlock"
+      },
+      "title": "Unlocks",
+      "type": "array"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "userId",
+    "careerId",
+    "rulesVersion",
+    "catalogVersion",
+    "totals",
+    "roleTier",
+    "skills",
+    "unlocks",
+    "recentOutcomes",
+    "computedAt"
+  ],
+  "title": "GrowthState",
+  "type": "object"
+}

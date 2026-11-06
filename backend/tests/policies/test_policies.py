@@ -1,0 +1,80 @@
+"""Policies: every key named in docs/MODULE_OWNER_DECISIONS.md exists, every choice of every policy is valid and has
+working code behind it, and env overrides are validated."""
+import re
+from pathlib import Path
+
+import pytest
+
+from app.policies import loader
+from app.policies.defaults import BY_KEY, POLICIES
+from app.policies.notifications import RULES as NOTIFY_RULES
+from app.policies.scoring.rules import RULES
+from app.policies.strategies import UNLOCK, VALIDATION, effort_rule, scoring_rules, unlock_match, validation
+
+DOC = Path(__file__).resolve().parents[3] / "docs" / "MODULE_OWNER_DECISIONS.md"
+
+
+def test_every_key_in_owner_doc_exists():
+    text = DOC.read_text()
+    keys = set(re.findall(r"`([A-Z][A-Z_]{3,})`", text))
+    keys -= {"ENV", "LLM_FAKE", "CATALOG_PATH"}
+    missing = sorted(k for k in keys if k not in BY_KEY)
+    assert not missing, f"MODULE_OWNER_DECISIONS.md names settings that don't exist in defaults.py: {missing}"
+
+
+def test_every_policy_has_a_decision_id_and_owner():
+    for p in POLICIES:
+        assert re.fullmatch(r"D-\d\d", p.decision) and p.owner and p.description
+
+
+@pytest.mark.parametrize("p", POLICIES, ids=lambda p: p.key)
+def test_default_is_valid(p):
+    assert loader.coerce(p, p.default) == p.default
+
+
+@pytest.mark.parametrize("key,choice", [(p.key, c) for p in POLICIES if p.kind == "choice" for c in p.choices])
+def test_every_choice_resolves(key, choice):
+    with loader.override(**{key: choice}):
+        assert loader.get(key) == choice
+        # the strategy behind the key must exist for every choice
+        if key == "VALIDATION_MODE":
+            assert validation().name == choice
+        if key == "UNLOCK_MATCH":
+            assert unlock_match().name == choice
+        if key == "SCORING_RULES":
+            assert scoring_rules() is RULES[choice]
+        if key == "EFFORT_RULE":
+            assert effort_rule().once_per_move() == (choice == "per_move_once")
+
+
+def test_strategy_registries_cover_choices():
+    assert set(VALIDATION) == set(BY_KEY["VALIDATION_MODE"].choices)
+    assert set(UNLOCK) == set(BY_KEY["UNLOCK_MATCH"].choices)
+    assert set(RULES) == set(BY_KEY["SCORING_RULES"].choices)
+
+
+def test_validation_strategies_behave_as_documented():
+    assert (VALIDATION["ai_then_buddy"].after_rubric(), VALIDATION["ai_then_buddy"].review_finalizes(),
+            VALIDATION["ai_then_buddy"].timeout_finalizes()) == ("provisional", True, True)
+    assert (VALIDATION["ai_only"].after_rubric(), VALIDATION["ai_only"].review_finalizes()) == ("final", False)
+    assert (VALIDATION["buddy_required"].after_rubric(), VALIDATION["buddy_required"].timeout_finalizes()) == ("wait", False)
+
+
+def test_notify_disabled_items_match_rules():
+    assert set(BY_KEY["NOTIFY_DISABLED"].allowed_items) == {r.kind for r in NOTIFY_RULES.values()}
+
+
+def test_bad_env_value_is_rejected(monkeypatch):
+    monkeypatch.setenv("VALIDATION_MODE", "sometimes")
+    with pytest.raises(loader.PolicyError):
+        loader.validate_env()
+
+
+def test_env_override_wins_over_default(monkeypatch):
+    monkeypatch.setenv("BUDDY_TIMEOUT_DAYS", "3")
+    assert loader.get("BUDDY_TIMEOUT_DAYS") == 3 and loader.source("BUDDY_TIMEOUT_DAYS") == "env"
+
+
+def test_int_range_enforced():
+    with pytest.raises(loader.PolicyError):
+        loader.coerce(BY_KEY["RESUME_MAX_MB"], 50)

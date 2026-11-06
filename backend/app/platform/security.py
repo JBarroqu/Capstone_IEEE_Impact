@@ -1,0 +1,105 @@
+"""Signing key, signed tokens (admin cookie, page-close event tickets) and request facts (client IP, https, local) used
+by the rate limits and the admin login. From the Wish Engine; user identity now comes from Supabase (platform/auth.py)."""
+import asyncio
+import base64
+import hashlib
+import hmac
+import secrets
+import time
+
+from fastapi import Request
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+
+from .. import db
+from ..config import config
+
+_KEY = "signing_secret"
+_secret: str | None = None
+_lock = asyncio.Lock()
+
+
+async def get_secret() -> str:
+    """SESSION_SECRET if set, else a random key created once and kept in the settings table, so cookies survive restarts."""
+    global _secret
+    if config.session_secret:
+        return config.session_secret
+    if _secret:
+        return _secret
+    async with _lock:
+        if not _secret:
+            async with db.engine().begin() as c:
+                await c.execute(insert(db.settings).values(key=_KEY, value=secrets.token_hex(32)).on_conflict_do_nothing())
+                _secret = (await c.execute(select(db.settings.c.value).where(db.settings.c.key == _KEY))).scalar_one()
+    return _secret
+
+
+def sign(secret: str, data: str) -> str:
+    mac = hmac.new(secret.encode(), data.encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).rstrip(b"=").decode()
+
+
+def same_text(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode(), b.encode())
+
+
+def _b36(n: int) -> str:
+    s = ""
+    while True:
+        n, r = divmod(n, 36)
+        s = "0123456789abcdefghijklmnopqrstuvwxyz"[r] + s
+        if not n:
+            return s
+
+
+def make_token(secret: str, payload: str, now_ms: int | None = None) -> str:
+    """`payload.issuedAt.signature`, issuedAt in base-36 milliseconds."""
+    body = f"{payload}.{_b36(now_ms if now_ms is not None else int(time.time() * 1000))}"
+    return f"{body}.{sign(secret, body)}"
+
+
+def verify_token(secret: str, token: str | None, max_age_ms: int, now_ms: int | None = None) -> str | None:
+    """The payload if the signature matches and the token is younger than max_age_ms (and not from the future)."""
+    if not token:
+        return None
+    body, dot, sig = token.rpartition(".")
+    if not dot or not same_text(sig, sign(secret, body)):
+        return None
+    payload, dot, at = body.rpartition(".")
+    try:
+        issued = int(at, 36)
+    except ValueError:
+        return None
+    now = now_ms if now_ms is not None else int(time.time() * 1000)
+    if not dot or issued > now + 60_000 or now - issued > max_age_ms:
+        return None
+    return payload
+
+
+def is_https(req: Request) -> bool:
+    """Behind the proxy the original scheme arrives in X-Forwarded-Proto."""
+    proto = req.headers.get("x-forwarded-proto") if config.trust_proxy else None
+    return (proto or req.url.scheme) == "https"
+
+
+def is_local(req: Request) -> bool:
+    """True when the browser is on this machine (localhost URL), so plain http never crosses the network."""
+    host = (req.headers.get("x-forwarded-host") if config.trust_proxy else None) or req.headers.get("host") or ""
+    host = host.rsplit(":", 1)[0] if not host.endswith("]") else host
+    return host in ("localhost", "127.0.0.1", "[::1]", "::1")
+
+
+def forwarded_for(req: Request) -> list[str]:
+    return [p.strip() for p in (req.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
+
+
+def client_ip(req: Request) -> str:
+    """With TRUST_PROXY: the address PROXY_HOPS entries from the right of X-Forwarded-For. Proxies append the address
+    they saw, so the rightmost entries are the trustworthy ones; anything to their left came from the client and can be
+    faked (Render's proxy appends rather than replaces; Caddy replaces, leaving one entry). Without TRUST_PROXY the
+    socket address: honouring the header with no proxy in front would let anyone pick their own rate-limit key."""
+    if config.trust_proxy:
+        hops = forwarded_for(req)
+        if hops:
+            return hops[-min(config.proxy_hops, len(hops))]
+    return req.client.host if req.client else "unknown"

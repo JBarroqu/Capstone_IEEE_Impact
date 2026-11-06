@@ -1,7 +1,9 @@
 """Content lives in data/*.json (no DB rows needed). "Seeding" = validating the starter wishes; moves are all generated."""
 import sys
 
-from wish_api.engine.wishes import wishes
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from app.modules.wish.engine.wishes import wishes  # noqa: E402
 
 bad, ids = 0, set()
 for w in wishes:

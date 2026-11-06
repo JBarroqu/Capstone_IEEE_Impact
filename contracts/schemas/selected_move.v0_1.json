@@ -1,0 +1,474 @@
+{
+  "$defs": {
+    "FollowUpAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "maxLength": 80,
+          "title": "Answer",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "question": {
+          "maxLength": 200,
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "FollowUpAnswer",
+      "type": "object"
+    },
+    "Move": {
+      "additionalProperties": false,
+      "properties": {
+        "activityType": {
+          "enum": [
+            "explore",
+            "create",
+            "test",
+            "share",
+            "connect",
+            "enable"
+          ],
+          "title": "Activitytype",
+          "type": "string"
+        },
+        "archetypeFit": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Archetypefit",
+          "type": "object"
+        },
+        "careerId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Careerid"
+        },
+        "cost": {
+          "enum": [
+            "free",
+            "paid"
+          ],
+          "title": "Cost",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "difficulty": {
+          "enum": [
+            "easy",
+            "moderate",
+            "hard"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        },
+        "domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "focus": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Focus",
+          "type": "array"
+        },
+        "format": {
+          "title": "Format",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "minutes": {
+          "title": "Minutes",
+          "type": "integer"
+        },
+        "skillId": {
+          "title": "Skillid",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "title",
+        "detail",
+        "step",
+        "minutes",
+        "cost",
+        "format",
+        "focus",
+        "domains",
+        "activityType",
+        "difficulty",
+        "skillId"
+      ],
+      "title": "Move",
+      "type": "object"
+    },
+    "PriorAttempts": {
+      "additionalProperties": false,
+      "properties": {
+        "chips": {
+          "items": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Chips",
+          "type": "array"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "title": "PriorAttempts",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "latencyMs": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latencyms"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "promptVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promptversion"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "tried": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tried",
+          "type": "array"
+        }
+      },
+      "title": "Provenance",
+      "type": "object"
+    },
+    "RejectedBefore": {
+      "additionalProperties": false,
+      "properties": {
+        "moveIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Moveids",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "title": "RejectedBefore",
+      "type": "object"
+    },
+    "Selection": {
+      "additionalProperties": false,
+      "properties": {
+        "msSinceShown": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mssinceshown"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "rejectedBefore": {
+          "items": {
+            "$ref": "#/$defs/RejectedBefore"
+          },
+          "title": "Rejectedbefore",
+          "type": "array"
+        },
+        "rerollIndex": {
+          "default": 0,
+          "title": "Rerollindex",
+          "type": "integer"
+        },
+        "shownMoveIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Shownmoveids",
+          "type": "array"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step",
+        "position"
+      ],
+      "title": "Selection",
+      "type": "object"
+    },
+    "WishSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "focus": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Focus",
+          "type": "array"
+        },
+        "followUps": {
+          "items": {
+            "$ref": "#/$defs/FollowUpAnswer"
+          },
+          "title": "Followups",
+          "type": "array"
+        },
+        "priorAttempts": {
+          "$ref": "#/$defs/PriorAttempts"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "open_ended",
+                "fixed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Why"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "WishSnapshot",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "move": {
+      "$ref": "#/$defs/Move"
+    },
+    "profileVersion": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Profileversion"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "schemaVersion": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "selectedAt": {
+      "format": "date-time",
+      "title": "Selectedat",
+      "type": "string"
+    },
+    "selectedMoveId": {
+      "title": "Selectedmoveid",
+      "type": "string"
+    },
+    "selection": {
+      "$ref": "#/$defs/Selection"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "evidence_submitted",
+        "awaiting_review",
+        "validated",
+        "needs_work",
+        "abandoned"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    },
+    "wish": {
+      "$ref": "#/$defs/WishSnapshot"
+    },
+    "wishId": {
+      "title": "Wishid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "selectedMoveId",
+    "userId",
+    "wishId",
+    "selectedAt",
+    "status",
+    "wish",
+    "move",
+    "selection",
+    "provenance"
+  ],
+  "title": "SelectedMove",
+  "type": "object"
+}

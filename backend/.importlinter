@@ -1,0 +1,50 @@
+[importlinter]
+root_package = app
+
+# T-01: a module may use another module only through its api.py (docs/ARCHITECTURE.md "Module boundary rules").
+[importlinter:contract:modules-through-api]
+name = Modules talk to each other only through api.py
+type = forbidden
+source_modules =
+    app.modules.profile
+    app.modules.wish
+    app.modules.growth
+    app.modules.social
+    app.modules.feed
+forbidden_modules =
+    app.modules.profile.service
+    app.modules.profile.tables
+    app.modules.profile.resume
+    app.modules.wish.service
+    app.modules.wish.tables
+    app.modules.wish.movegen
+    app.modules.growth.service
+    app.modules.growth.tables
+    app.modules.growth.scoring
+    app.modules.social.service
+    app.modules.social.tables
+    app.modules.feed.service
+    app.modules.feed.tables
+allow_indirect_imports = True
+ignore_imports =
+    app.modules.profile.* -> app.modules.profile.*
+    app.modules.wish.* -> app.modules.wish.*
+    app.modules.growth.* -> app.modules.growth.*
+    app.modules.social.* -> app.modules.social.*
+    app.modules.feed.* -> app.modules.feed.*
+
+[importlinter:contract:contracts-standalone]
+name = Contracts depend on nothing in the app
+type = forbidden
+source_modules = app.contracts
+forbidden_modules =
+    app.modules
+    app.platform
+    app.policies
+    app.llm
+
+[importlinter:contract:policies-standalone]
+name = Policies don't depend on modules
+type = forbidden
+source_modules = app.policies
+forbidden_modules = app.modules
