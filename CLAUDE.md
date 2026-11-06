@@ -1,38 +1,30 @@
-# Wish Engine prototype
+# Impact++ (integration branch)
 
-Architecture, data model and API with samples: `docs/ARCHITECTURE.md`. What the next module receives (selected-move payload): `docs/HANDOFF.md`. Planned work (generated follow-up questions, etc.) lives in `docs/NEXT.md`. Public deployment: `docs/DEPLOY.md` (still missing: `docs/GOING-PUBLIC.md`). Gemini Interactions API research: `docs/GEMINI-INTERACTIONS.md`.
+This branch joins the five Impact++ capstone modules into one product:
+- **Frontend:** one React 19 + Vite + Tailwind 4 app.
+- **Backend:** one FastAPI service.
+- **Data and auth:** one Supabase project (Postgres, Auth, Storage), deployed on Render.
 
-Two apps: a **Next.js frontend** (pages only, no `/api` routes) and a **FastAPI backend** in `backend/wish_api` (every API route, model chain, prompts, analytics). The browser calls the API cross-origin (same host, port 8000; CORS with credentials). User-testing prototype: shows students 3 move options per step for a "wish", logs every pick/skip/reject, collects feedback. Source of truth for requirements: `docs/PROMPT.md` (note its UPDATE notes: laptop-first, Gemini default, single design in /design, no themes).
+It was branched from `wish-engine`. The other modules are ported by hand from their branches (`docs/PROVENANCE.md`).
+
+**Current state: Phase 0, docs only.** The code in this tree is still the Wish Engine. Its working notes and gotchas are in `docs/wish-engine/CLAUDE.md`. The plan and progress are in `docs/ROADMAP.md`.
+
+## Read first
+- `docs/README.md`: index and owners
+- `docs/DECISIONS.md`: every product decision and its policy switch. **Any behaviour change that touches another module goes through this file.**
+- `docs/ARCHITECTURE.md`, `docs/CONTRACTS.md`, `docs/DATA_MODEL.md`, `docs/API.md`, `docs/SCORING.md`, `docs/DESIGN.md`, `docs/SECURITY.md`, `docs/TESTING.md`
+- `docs/modules/*.md`: what was kept, changed and dropped from each branch, and why
 
 ## Rules
-- **No `Co-Authored-By` / "Generated with Claude Code" lines** in commits or PRs. Plain messages. Commit after each stage. Never push without being asked. Work happens on the `wish-engine` branch of JBarroqu/Capstone_IEEE_Impact (public; remote `capstone`); `origin` (waleedalfar/iihow) is the old repo.
-- **Every move is LLM-generated; there are no set moves.** No catalog, no static provider, no fallback, no cache. When the models fail, show a retry and log `options_failed`. The moves prompt must not steer toward specific moves: no worked paths or wish-specific examples, only the one off-topic style example in `prompts/moves_v4.py`. Same for `questions_v1.py`: no example questions.
-- **Design**: follow `design/*.dc.html` mockups (Figtree, blue band header, pill chips). Only one visual design; there are no themes. Admin page reuses the same design.
-- Content is pitched at senior ASU CS majors. No emoji, no "AI"/"smart" wording, say "moves"/"options".
-
-## Commands
-`docker compose up -d --build` is the normal way to run it (db, migrate, api :8000, app :3010) · without Docker: `npm run api` (FastAPI :8000, `/docs` for the OpenAPI page; first time `npm run api:setup`) + `npm run dev` (pages :3000) · `npm test` (vitest frontend + pytest backend, no live LLM calls) · `npm run typecheck` · `npm run db:push` (`backend/scripts/migrate.py`: create_all + `ADDED_COLUMNS`) · `npm run seed` · `npm run llm:check [wish] [--all]` · `npm run export` · `npm run backup` · `npx tsx scripts/e2e.ts` (browser smoke test, needs API + dev server + Chrome; `BASE_URL=` for another port)
-
-## Layout
-- `data/` wishes.json (starter chips, also bundled into the frontend), keywords.json (classifier fallback). No moves.
-- `backend/wish_api/`: `main.py` (app + CORS), `routes/student.py` (`/api/config|session|wish|classify|questions|options|events`), `routes/admin.py` (`/api/admin/login|models|delete-test|export/{kind}|dashboard`), `db.py` (SQLAlchemy Core tables = the old Drizzle schema), `analytics.py` (pure stat/CSV-row functions), `admin_data.py`, `csv_export.py`, `jsutil.py` (reproduces JS rounding/number/JSON behaviour so outputs match the old TS backend), `vocab.py` (enums; not `types.py`, which shadows the stdlib).
-- Model chain: `providers/options.py` `get_options` (persists generated_moves in the background) → `llm.py` `chain_options`/`run_chain` → `run.py` walks the chain: `backends.py` discovers models (Gemini via ListModels, ranked lite > flash > pro; Groq/OpenRouter if keyed; local Ollama if running), `health.py` cooldowns, `prefs.py` admin "Try first". Raises `LlmUnavailable`. Gemini calls the Interactions REST API with httpx (stateless, `store: false`, no client retries; cancellation via asyncio timeout). Prompts: `prompts/moves_v4.py` (`PROMPT_VERSION`, `MOVES_TEMPERATURE` 0.8), `questions_v1.py`, `classify_v1.py`; their text is in `prompts/text.py`.
-- Frontend: `lib/api.ts` `apiUrl()` (browser: same host :8000 or `NEXT_PUBLIC_API_URL`; server: `API_URL`), `lib/client-api.ts` (credentials: include), `lib/track.ts` (events as text/plain so cross-origin beacons and keepalive work), `lib/server-config.ts` (`/api/config` for flow length + consent text), `lib/admin-types.ts` (dashboard JSON shapes). Admin page fetches `/api/admin/dashboard` server-side, forwarding the `wish_admin` cookie (set by FastAPI; cookies ignore ports, so it reaches Next too).
-- Follow-up questions: `/api/questions` writes 3 per wish after the context screen (stateless); answers become `ctx.followUps` and `wishes.follow_ups`. Fixed archetype quiz only if every model fails (`source: "fixed"`); `lib/archetypes.ts` and `backend/wish_api/archetypes.py` both hold it.
-- Wish classification: `/api/classify` runs the same chain in the background after the wish is submitted; move requests wait for it. Keyword classifier answers only if every model fails (`source: "keywords"`).
-- Security (`docs/SECURITY.md`): `security.py` (signing key, signed tokens, `wish_sess` session cookie, client IP), `rate_limit.py`, `admin_auth.py` (signed expiring admin cookie), `read_json(req, max_bytes)` body caps, header middleware in `main.py`. `/api/session` sets the cookie; options/classify/questions/wish/events return 401 `no_session` without it, so client calls wait on `whenSessionReady()` (`lib/client-api.ts`, `lib/track.ts` `setReady`). Deployed on **Render** from `render.yaml` (wish-app public web service, wish-api private service, wish-db): the browser calls `/api` on wish-app and `next.config.mjs` rewrites it to `API_HOSTPORT` (private network; build arg, so it must exist at build time), because `onrender.com` is a public suffix and two subdomains would break the cookies. Render's proxy appends to `X-Forwarded-For`, so `client_ip` takes the entry `PROXY_HOPS` from the right; `/api/admin/client-ip` shows what it sees. Own server: `docker-compose.public.yml` + `Caddyfile.public` (one https origin, `/api/*` to FastAPI, frontend built with `NEXT_PUBLIC_API_URL=same-origin`, `PUBLIC_MODE`/`TRUST_PROXY` on); `docs/DEPLOY.md`. Test it on a laptop with `DOMAIN=localhost` and `BASE_URL=https://localhost npx tsx scripts/e2e.ts`.
-
-## Gotchas
-- Event payload keys are snake_case and analytics depends on them: `options_shown{move_ids,reroll_index,relaxed,sources,requested_provider,used_provider,model,prompt_version,latency_ms,cache_hit,repaired,tried}`, `classification_guessed{focus,domains,type,source,provider,model,prompt_version,latency_ms,tried|fail_reason}`, `questions_shown{source,provider,model,prompt_version,latency_ms,tried,fail_reason,questions}`, `quiz_answered{q,answer,question,answer_text,source}`, `move_locked{move_id,position,ms_since_shown,reroll_index}`, `options_rejected{reason_chip,text,move_ids}`, `path_rated{rating}`, `would_do_this_week{answer}`, `paid_willingness{move_id,answer}`, `open_feedback{text}`, `path_completed{move_ids}`.
-- Run the API with ONE worker (`--workers 1`): model health, cooldowns and the Gemini RPM queue are in memory.
-- Request bodies are validated with pydantic inside each route (`routes/common.py` `parse`) so errors stay `400 {ok:false,error}` like before, not FastAPI's 422.
-- `lib/types.ts` (frontend) and `backend/wish_api/vocab.py` + the pydantic models must agree; `lib/events.ts` EVENT_NAMES and `events_schema.py` too.
-- Move ids are `gen-` + hash(normalized title + step). Old rows may hold catalog slugs from before moves.v3. `options_shown.cache_hit` is always false and `sources` always generated (kept for old rows). Rerolls send `excludeTitles` (titles already shown) so the prompt can avoid them.
-- Env vars: see `.env.example`. `MOVE_PROVIDER` defaults to `auto` (all available models). No model env var is needed; models are discovered. `npm run llm:check -- "wish" --all` pings every model in the chain.
-- `FLOW_MOVES=1` (default): pick move 1, then straight to the rating screen (quick survey); `FLOW_MOVES=3` restores the full path.
-- Student flow lives in `components/Flow.tsx` (state machine) with screens in `screens.tsx`, `Pick.tsx`, `Summary.tsx`; admin is `app/admin/page.tsx` (server component) + `components/admin/client.tsx`.
-- `/api/wish` is an upsert on purpose: client updates for one wish arrive out of order.
-- Gemini models get retired or overloaded often; `gemini-3.1-flash-lite` was reliable on 2026-09-28 but returned 503 on 2026-10-15, when `gemini-3.5-flash-lite` worked (~2s). Test with `GEMINI_MODELS=... npm run llm:check`; in zsh write `${m}:generateContent`, not `$m:generateContent`, in curl loops.
-- Database: local Postgres 15 (brew service), db `wish_engine`; `DATABASE_URL` in `.env`. Tests never need it; e2e and the app do.
-- Admin login refuses an `ADMIN_PASSWORD` that is empty, `change-me` or under 8 characters (503), and plain http from another machine (403) unless `ADMIN_ALLOW_HTTP=true`.
-- `crypto.randomUUID` is undefined on plain-http LAN URLs (only HTTPS/localhost); always use `uuid()` from `lib/uuid.ts` in client code. Same for `navigator.clipboard`.
+- **No `Co-Authored-By` or "Generated with Claude Code" lines** in commits or PRs; plain messages. Commit after each stage. Never push without being asked. The remote is `capstone` = `JBarroqu/Capstone_IEEE_Impact`, branch `integration`.
+- **Every switchable decision is a policy.**
+  - A new choice that another module owner might want differently gets an ID in `docs/DECISIONS.md` and a key in `backend/app/policies/defaults.py`, implemented as a strategy class whose docstring starts with the decision ID.
+  - Business code never compares policy strings; it calls the getter.
+  - The register-sync test and the every-choice matrix test must stay green.
+- **Module boundaries.** A module imports only another module's `api.py`, never its service, repo or tables (import-linter). Cross-module data uses the versioned contracts in `app/contracts`. Bump `schemaVersion` on any change.
+- **Every move is model-generated** (D-29). No catalogue, static moves, cache or fallback moves. The moves prompt keeps exactly one off-topic style example and no worked paths. Bump `PROMPT_VERSION` on any prompt edit. The fake model loads only when `ENV=test`.
+- **Design:** only the Event_Ecosystem design (`docs/DESIGN.md`). Tokens live in `frontend/src/design/tokens.css`; no raw hex values in components.
+- **Copy:** senior ASU CS students. No emoji. Never "AI" or "smart" in the interface; say moves, options, review, score.
+- **Reads never write.** GrowthState is computed from the ledger. Points are append-only and store `rules_version` + `policy_snapshot`.
+- **One API worker** (T-11): model health, rate limits and jobs are in memory.
+- **Never read `.env` contents.**

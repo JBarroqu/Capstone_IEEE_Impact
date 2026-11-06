@@ -174,7 +174,7 @@ class QuestionsBody(BaseModel):
 @router.post("/questions")
 async def questions(req: Request):
     """Three follow-up questions written for this wish (stateless: the prompt carries everything, see
-    docs/GEMINI-INTERACTIONS.md). If every model fails, the fixed placeholder quiz answers instead (source: "fixed"),
+    docs/wish-engine/GEMINI-INTERACTIONS.md). If every model fails, the fixed placeholder quiz answers instead (source: "fixed"),
     like classification falls back to keywords; it only steers the moves, so it never blocks the student."""
     import time
 

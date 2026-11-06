@@ -31,7 +31,7 @@ def gemini_backend(model: str) -> Backend:
     queue = _queues.setdefault(model, RateQueue(config.gemini_rpm))
 
     async def generate(system: str, user: str, schema: dict, temperature: float = 0.4) -> str:
-        # Interactions API over REST (see docs/GEMINI-INTERACTIONS.md). Stateless: every call carries its full prompt and
+        # Interactions API over REST (see docs/wish-engine/GEMINI-INTERACTIONS.md). Stateless: every call carries its full prompt and
         # store:false. No client-side retries: the chain retries and fails over itself, and cancelling the asyncio task
         # (the per-call timeout) closes the request.
         res = await client().post(

@@ -1,4 +1,4 @@
-# Public deployment: docker compose -f docker-compose.public.yml up -d --build   (see docs/DEPLOY.md)
+# Public deployment: docker compose -f docker-compose.public.yml up -d --build   (see docs/wish-engine/DEPLOY.md)
 # Caddy is the only published service (ports 80 and 443) and serves the pages and /api on https://DOMAIN.
 # The API and the app are reachable only through it, so X-Forwarded-For is always Caddy's.
 # Needs in .env: DOMAIN, POSTGRES_PASSWORD, ADMIN_PASSWORD (8+ characters), GEMINI_API_KEY.

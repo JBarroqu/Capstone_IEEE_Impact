@@ -3,7 +3,7 @@
 #   wish-app  public web service (Next.js). The browser calls /api on this same origin; Next forwards it to wish-api.
 #   wish-api  private service (FastAPI). No public URL; only wish-app reaches it.
 #   wish-db   Render Postgres.
-# Secrets marked sync: false are asked for once when the Blueprint is created. Details: docs/DEPLOY.md.
+# Secrets marked sync: false are asked for once when the Blueprint is created. Details: docs/wish-engine/DEPLOY.md.
 services:
   - type: web
     name: wish-app
