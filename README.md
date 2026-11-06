@@ -1,6 +1,6 @@
 # Impact++ (integration branch)
 
-> This branch is joining the five Impact++ modules into one product (React + FastAPI + Supabase). Start with `docs/README.md` and `docs/DECISIONS.md`. The code below this note is still the Wish Engine until Phase 1 of `docs/ROADMAP.md`; the instructions that follow describe running it.
+> This branch is joining the five Impact++ modules into one product (React + FastAPI + Supabase). Start with `docs/README.md` and `docs/MODULE_OWNER_DECISIONS.md`. The code below this note is still the Wish Engine until Phase 1 of `docs/ROADMAP.md`; the instructions that follow describe running it.
 
 ## Wish Engine prototype
 

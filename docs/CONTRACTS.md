@@ -35,7 +35,7 @@ A test fails if a model changes but its committed schema doesn't, unless `schema
 
 ## ProfessionalState v0.1 (Module 1, owner Cfoley5)
 
-Built from the `Professional-State` branch's model. Changes from that model are listed in `DECISIONS.md` D-44 and D-51.
+Built from the `Professional-State` branch's model. Changes from that model are listed in `MODULE_OWNER_DECISIONS.md` (D-44, D-51).
 
 | Field | Type | Notes |
 |---|---|---|

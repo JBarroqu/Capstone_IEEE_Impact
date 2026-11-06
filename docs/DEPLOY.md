@@ -38,7 +38,7 @@ Environment variables:
 | `ADMIN_PASSWORD` | 8+ characters, not `change-me` |
 | `SESSION_SECRET` | generated; signs the admin cookie and event tickets |
 | `PUBLIC_MODE=true`, `TRUST_PROXY=true`, `PROXY_HOPS=1` | |
-| any policy key from `DECISIONS.md` | optional override |
+| any policy key from `backend/app/policies/defaults.py` | optional override |
 
 After the first deploy:
 1. Sign up.

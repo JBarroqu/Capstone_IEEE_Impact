@@ -11,14 +11,14 @@ It was branched from `wish-engine`. The other modules are ported by hand from th
 
 ## Read first
 - `docs/README.md`: index and owners
-- `docs/DECISIONS.md`: every product decision and its policy switch. **Any behaviour change that touches another module goes through this file.**
+- `docs/MODULE_OWNER_DECISIONS.md`: only the places where the integrated app differs from what a module owner built or intended, or adds new logic, each with its policy setting. Owners review it. **Any new behaviour change that touches another module's work gets an entry here.**
 - `docs/ARCHITECTURE.md`, `docs/CONTRACTS.md`, `docs/DATA_MODEL.md`, `docs/API.md`, `docs/SCORING.md`, `docs/DESIGN.md`, `docs/SECURITY.md`, `docs/TESTING.md`
 - `docs/modules/*.md`: what was kept, changed and dropped from each branch, and why
 
 ## Rules
 - **No `Co-Authored-By` or "Generated with Claude Code" lines** in commits or PRs; plain messages. Commit after each stage. Never push without being asked. The remote is `capstone` = `JBarroqu/Capstone_IEEE_Impact`, branch `integration`.
 - **Every switchable decision is a policy.**
-  - A new choice that another module owner might want differently gets an ID in `docs/DECISIONS.md` and a key in `backend/app/policies/defaults.py`, implemented as a strategy class whose docstring starts with the decision ID.
+  - A new choice that another module owner might want differently gets an entry in `docs/MODULE_OWNER_DECISIONS.md` and a key in `backend/app/policies/defaults.py` (every key, including ones not in that doc, is listed with its description in `defaults.py` and on the admin Policies page), implemented as a strategy class whose docstring starts with the decision ID.
   - Business code never compares policy strings; it calls the getter.
   - The register-sync test and the every-choice matrix test must stay green.
 - **Module boundaries.** A module imports only another module's `api.py`, never its service, repo or tables (import-linter). Cross-module data uses the versioned contracts in `app/contracts`. Bump `schemaVersion` on any change.

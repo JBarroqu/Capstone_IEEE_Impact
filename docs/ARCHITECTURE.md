@@ -7,7 +7,7 @@ This file covers:
 - the module boundary rules;
 - the constraints that shape the code.
 
-The data model is in `DATA_MODEL.md`. The shapes passed between modules are in `CONTRACTS.md`. Every product choice and how to switch it is in `DECISIONS.md`.
+The data model is in `DATA_MODEL.md`. The shapes passed between modules are in `CONTRACTS.md`. The switchable settings are listed in `backend/app/policies/defaults.py` (and the admin Policies page). The ones that change what a module owner built are explained in `MODULE_OWNER_DECISIONS.md`.
 
 ## 1. System overview
 
@@ -56,7 +56,7 @@ backend/app/
     admin/           admin dashboard, exports, policies editor
   llm/             the Wish Engine's model chain, shared by every module (T-10)
   contracts/       versioned pydantic contracts (CONTRACTS.md)
-  policies/        every switchable decision (DECISIONS.md)
+  policies/        every switchable setting (defaults.py)
   modules/
     profile/ wish/ growth/ social/ feed/
       router.py   HTTP routes for this module
@@ -76,7 +76,7 @@ A module may import:
 
 These rules are checked in CI with `import-linter`. Following them means a module owner can rewrite their module's internals without breaking anyone, as long as `api.py` keeps returning the same contract.
 
-### Policies (DECISIONS.md "How switching works")
+### Policies
 
 - `policies/defaults.py` lists every key.
 - `policies/loader.py` resolves each key: the default, then an env var, then the admin override in `core.settings`. It caches the result for 30 s.

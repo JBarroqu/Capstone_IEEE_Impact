@@ -9,7 +9,7 @@
 | Unit | pytest | `backend/tests/unit` | nothing (the fake model, pure functions) |
 | Integration | pytest, marker `db` | `backend/tests/integration` | local Supabase (`supabase start`). Each test runs in a transaction that is rolled back. |
 | Contracts | pytest | `backend/tests/contracts` | nothing. Exported JSON Schemas match the committed ones; Python and TypeScript enums match. |
-| Policies | pytest | `backend/tests/policies` | nothing. `DECISIONS.md` ↔ `defaults.py` key sync; **every choice of every strategy** runs. |
+| Policies | pytest | `backend/tests/policies` | nothing. every key named in `MODULE_OWNER_DECISIONS.md` exists in `defaults.py`; **every choice of every strategy** runs. |
 | Ported | pytest | `backend/tests/ported` | Growth-Validation's scoring tests (v1.0) and mike-branch's 14 buddy cases, as originally written in intent |
 | Module boundaries | import-linter | `backend/pyproject.toml` | nothing. Modules import only each other's `api.py`. |
 | Frontend | vitest + Testing Library + MSW | `frontend/src/**/*.test.tsx` | nothing. Components, `track.ts`, guards, copy check (no emoji, no "AI"/"smart"). |

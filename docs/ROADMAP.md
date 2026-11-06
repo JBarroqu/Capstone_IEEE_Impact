@@ -5,16 +5,16 @@ Each phase ends with `npm test` green and something to demo. Work happens on `in
 ## Phase 0: architecture and docs (current)
 - [x] Read every module branch
 - [x] Decisions confirmed with the integration lead
-- [x] `docs/` set: README, PRODUCT, ARCHITECTURE, DECISIONS, CONTRACTS, DATA_MODEL, API, SCORING, DESIGN, SECURITY, DEPLOY, TESTING, PROVENANCE, modules/*
+- [x] `docs/` set: README, PRODUCT, ARCHITECTURE, MODULE_OWNER_DECISIONS, CONTRACTS, DATA_MODEL, API, SCORING, DESIGN, SECURITY, DEPLOY, TESTING, PROVENANCE, modules/*
 - [x] Spike: Render static-site rewrites to an external URL are documented ("Destination can be either a path or a full, publicly accessible URL"), but header and cookie forwarding isn't documented. Decision: keep one origin with the API serving the React build (T-03).
 - [x] Spike: Supabase token verification from Python. Use JWKS at `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (ES256/RS256); the legacy HS256 secret still works but isn't recommended (T-04). Connect from Render via the shared pooler in session mode, port 5432, IPv4.
 - [ ] Spike, still to do: how `supabase start` signs local tokens (JWKS or a fixed HS256 secret). Needs the Supabase CLI installed.
-- [ ] **Module owners review `DECISIONS.md`** and mark entries Agreed or Changed
+- [ ] **Module owners review `MODULE_OWNER_DECISIONS.md`** (can happen after the integrated version is built) and mark entries Agreed or Changed
 
 ## Phase 1: foundations
 - [ ] `supabase/` init; migrations for schemas, `core`, RLS deny-all, storage buckets; new-user trigger
 - [ ] `backend/app` skeleton: config, db, platform (auth, http, security, rate_limit, admin_auth, bus, jobs, storage, events_log)
-- [ ] `policies/` loader + defaults + DECISIONS sync test + admin policies API
+- [ ] `policies/` loader + defaults + sync test (every key named in MODULE_OWNER_DECISIONS exists in defaults.py) + admin policies API
 - [ ] `contracts/` + schema export + snapshot test + TypeScript generation
 - [ ] `llm/` moved from the Wish Engine with its tests passing; fake model gated on `ENV=test`
 - [ ] import-linter boundary contracts
@@ -50,4 +50,4 @@ Each phase ends with `npm test` green and something to demo. Work happens on `in
 ## Phase 7: hardening and launch
 - [ ] CSP, rate limits on every route, admin policies page and endorsements, security review
 - [ ] Supabase production project, Render deploy, Google OAuth, SMTP, smoke e2e against production
-- [ ] `DECISIONS.md` statuses updated after owner review
+- [ ] `MODULE_OWNER_DECISIONS.md` statuses updated after owner review

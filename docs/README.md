@@ -17,7 +17,7 @@ Impact++ joins five capstone modules into one product. A student describes where
 | 5 | Opportunity & Event Return | JBarroqu | `Event_Ecosystem` | [modules/feed.md](modules/feed.md) |
 
 ## Reading order
-- **Module owners:** start with **your module doc**, then your section of **[DECISIONS.md](DECISIONS.md)**. Every choice made while integrating your work is listed there with the one setting that changes it. Mark each entry Agreed, or tell us what you'd like instead.
+- **Module owners:** start with **your module doc**, then your section of **[MODULE_OWNER_DECISIONS.md](MODULE_OWNER_DECISIONS.md)**. It lists only what works differently from what you built, or is new, each with the setting that changes it. Mark each entry Agreed, or tell us what you'd like instead.
 - **Everyone:** [PRODUCT.md](PRODUCT.md) explains the whole flow through one user's story, with a glossary.
 - **Developers:**
   1. [ARCHITECTURE.md](ARCHITECTURE.md): how it fits together

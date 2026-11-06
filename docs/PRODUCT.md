@@ -79,7 +79,7 @@ If Priya had never reviewed, the evidence would finalise on the rubric alone aft
 | Opportunity / unlock | Something a tier gives access to, e.g. study group, mentor match (D-25) |
 | Feed item | A notification in one of the six categories: Social, Pro, Enablement, Impact, Events, Growth |
 | Best next move | The single most useful thing to do now, shown on Home (D-40) |
-| Policy | A named setting that switches a decision (`DECISIONS.md`) |
+| Policy | A named setting that switches a decision (`backend/app/policies/defaults.py`; owner-facing ones in `MODULE_OWNER_DECISIONS.md`) |
 
 ## Out of scope for this integration
 
