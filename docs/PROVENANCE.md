@@ -23,7 +23,17 @@ This table is filled in as code is ported: one row per ported file, with its sou
 
 | Destination | Source | Notes |
 |---|---|---|
-| (Phase 1+) | | |
+| `backend/app/llm/*` | wish-engine `backend/wish_api/providers/*` | moved with history (`git mv`); move-specific parsing split into `modules/wish/movegen.py` |
+| `backend/app/modules/wish/*` | wish-engine `routes/student.py`, `prompts/*`, `engine/*`, `archetypes.py`, `vocab.py` | `moves_v4` became `moves_v5` (profile, outcomes, scoring tags) |
+| `backend/app/platform/{security,rate_limit,admin_auth,http,jsutil}.py` | wish-engine `security.py`, `rate_limit.py`, `admin_auth.py`, `routes/common.py`, `jsutil.py` | session cookie removed; Supabase JWT in `platform/auth.py` |
+| `backend/app/platform/admin/*` | wish-engine `routes/admin.py`, `analytics.py`, `admin_data.py`, `csv_export.py` | re-keyed by user; policies, endorsements added; TEST deletion removed |
+| `frontend/src/modules/wish/{Pick,NewWish}.tsx`, `frontend/src/lib/{track,uuid}.ts` | wish-engine `components/Pick.tsx`, `screens.tsx`, `lib/track.ts`, `lib/uuid.ts` | logic and copy kept, restyled |
+| `backend/app/policies/scoring/rules.py`, `backend/app/modules/growth/{scoring,rubric,catalog}.py`, `data/catalog.json` | Growth-Validation `scoring.py`, `ai.py`, `catalog.py`, `main.py` @ c657bab | constants unchanged (v1.0); rubric prompt kept |
+| `backend/tests/ported/test_gv_scoring.py` | Growth-Validation `test_scoring.py` | original three tests verbatim |
+| `backend/app/modules/social/*` | mike-branch `server.py` @ 402939b | invite rules kept; projects became selected moves |
+| `backend/tests/integration/test_mike_buddy.py` | mike-branch `tests/test_api.py` | each test names the original case |
+| `backend/app/modules/profile/*` | Professional-State `backend/main.py` @ 8e3fbfe | fields kept, plus strengths, target career, handle |
+| `frontend/src/design/tokens.css`, `frontend/public/icons/*`, `frontend/src/app/AppShell.tsx`, `frontend/src/modules/feed/HomePage.tsx` | Event_Ecosystem `Notifications/src/App.tsx`, `index.css`, `public/assets/*` @ 6fd258c | design copied exactly; SVGs renamed by meaning |
 
 ## Left behind, with reasons
 - **Event_Ecosystem**

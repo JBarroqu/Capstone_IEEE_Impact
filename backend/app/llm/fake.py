@@ -56,10 +56,10 @@ def _text(path: str, seed: int) -> str:
     return samples.get(leaf, f"{leaf} {n}")
 
 
-def _fix_moves(out: dict, step: int) -> dict:
-    """Moves need distinct titles, at least 2 free, and the requested step."""
+def _fix_moves(out: dict, step: int, user: str) -> dict:
+    """Moves need distinct titles (also across rerolls: the prompt lists what was shown), at least 2 free, the step."""
     for i, m in enumerate(out.get("moves", [])):
-        m["title"] = f"Fake move {i + 1} for step {step} ({hashlib.sha1(str(i).encode()).hexdigest()[:4]})"
+        m["title"] = f"Fake move {i + 1} for step {step} ({hashlib.sha1(f'{user}|{i}'.encode()).hexdigest()[:6]})"
         m["cost"] = "free"
         m["step"] = step
         m["minutes"] = 30 + i * 10
@@ -71,7 +71,7 @@ async def generate(system: str, user: str, schema: dict, temperature: float | No
     out = _fill(schema, seed)
     if isinstance(out, dict) and "moves" in out:
         m = re.search(r"Set \"step\" to (\d)", user)
-        out = _fix_moves(out, int(m.group(1)) if m else 1)
+        out = _fix_moves(out, int(m.group(1)) if m else 1, user)
     if isinstance(out, dict) and "questions" in out:
         for i, q in enumerate(out["questions"]):
             q["question"] = f"Fake question {i + 1}?"

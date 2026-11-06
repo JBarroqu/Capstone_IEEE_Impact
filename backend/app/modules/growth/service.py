@@ -95,7 +95,20 @@ async def list_evidence(user_id: str, selected_move_id: str | None = None) -> li
         q = q.where(evidence.c.selected_move_id == selected_move_id)
     async with db.read() as c:
         rows = (await c.execute(q.order_by(evidence.c.created_at.desc()))).all()
-    return [public_evidence(_ev_dict(r)) for r in rows]
+        ids = [r.id for r in rows]
+        pts = {}
+        if ids:
+            for eid, kind, total in (await c.execute(select(score_events.c.evidence_id, score_events.c.kind, func.sum(score_events.c.points))
+                                                     .where(score_events.c.evidence_id.in_(ids), score_events.c.kind.in_(("provisional", "validated")))
+                                                     .group_by(score_events.c.evidence_id, score_events.c.kind))).all():
+                pts[(str(eid), kind)] = float(total)
+    out = []
+    for r in rows:
+        e = _ev_dict(r)
+        pe = public_evidence(e, pts.get((e["id"], "validated")) if e["status"] == "validated" else None)
+        pe["pendingPoints"] = pts.get((e["id"], "provisional")) if e["status"] == "awaiting_review" else None
+        out.append(pe)
+    return out
 
 
 def public_evidence(e: dict, points: float | None = None) -> dict:

@@ -7,14 +7,14 @@
 | Layer | Tool | Where | Needs |
 |---|---|---|---|
 | Unit | pytest | `backend/tests/unit` | nothing (the fake model, pure functions) |
-| Integration | pytest, marker `db` | `backend/tests/integration` | local Supabase (`supabase start`). Each test runs in a transaction that is rolled back. |
+| Integration | pytest | `backend/tests/integration` | local Supabase (`npm run db:start`); skipped when it isn't running. The app runs in-process; users are created through Supabase Auth and deleted afterwards. Includes mike-branch's buddy cases (`test_mike_buddy.py`). |
 | Contracts | pytest | `backend/tests/contracts` | nothing. Exported JSON Schemas match the committed ones; Python and TypeScript enums match. |
 | Policies | pytest | `backend/tests/policies` | nothing. every key named in `MODULE_OWNER_DECISIONS.md` exists in `defaults.py`; **every choice of every strategy** runs. |
-| Ported | pytest | `backend/tests/ported` | Growth-Validation's scoring tests (v1.0) and mike-branch's 14 buddy cases, as originally written in intent |
-| Module boundaries | import-linter | `backend/pyproject.toml` | nothing. Modules import only each other's `api.py`. |
-| Frontend | vitest + Testing Library + MSW | `frontend/src/**/*.test.tsx` | nothing. Components, `track.ts`, guards, copy check (no emoji, no "AI"/"smart"). |
+| Ported | pytest | `backend/tests/ported` | Growth-Validation's scoring tests (v1.0), the SCORING.md worked examples, v1.0 vs v1.1 |
+| Module boundaries | import-linter | `backend/.importlinter` | nothing. Modules import only each other's `api.py`. |
+| Frontend | vitest | `frontend/src/test/*.test.ts` | nothing. Formatting, `track.ts` batching, copy check (no emoji, no "AI"/"smart"). |
 | Types | `tsc --noEmit` | frontend | nothing |
-| End-to-end | Playwright | `e2e/` | local Supabase + API + `vite preview`, `ENV=test LLM_FAKE=1` |
+| End-to-end | playwright-core + Chrome | `e2e/full-loop.ts` | local Supabase + `npm run e2e:serve` (API serving the build with `ENV=test LLM_FAKE=1`) |
 | Live models | `npm run llm:check` | | real API keys; not in CI |
 
 ## The fake model
@@ -34,8 +34,8 @@
 
 ## Commands
 ```
-npm test                 # unit + contracts + policies + ported + frontend + typecheck + import-linter
-npm run test:db          # integration tests (needs supabase start)
-npm run e2e              # Playwright (needs supabase start)
-npm run llm:check        # live models
+npm test               # vitest + tsc + pytest (integration tests need npm run db:start) + import-linter
+npm run e2e:serve      # separate terminal: build, then the API with the fake model on :8000
+npm run e2e            # two users through the whole product; add -- --shots=DIR for screenshots
+npm run llm:check      # live models
 ```

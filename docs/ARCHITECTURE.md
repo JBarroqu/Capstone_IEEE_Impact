@@ -42,7 +42,7 @@ The alternative still works through settings: a separate static site plus `VITE_
 backend/app/
   main.py          create_app(): middleware, routers, static React build with SPA fallback
   config.py        environment settings (pydantic-settings)
-  db.py            SQLAlchemy Core engine (psycopg3), transaction helper
+  db.py            SQLAlchemy Core engine (asyncpg), tx() and read() helpers
   platform/        shared infrastructure, no product logic
     auth.py          Supabase token check → CurrentUser(id, email)
     security.py      signed tokens, client IP, https detection (from the Wish Engine)

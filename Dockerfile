@@ -1,28 +1,28 @@
-# Wish Engine frontend: Next.js standalone server (the API is backend/Dockerfile). Build: docker compose build. Run: docker compose up.
-
-FROM node:22-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
+# Impact++: one image serving the API and the built React app on one origin (docs/ARCHITECTURE.md, T-03).
+FROM node:22-alpine AS web
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
+COPY frontend/ ./
+# Browser-side settings are baked in at build time (Render passes service env vars as build args).
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_GOOGLE_AUTH=off
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY VITE_GOOGLE_AUTH=$VITE_GOOGLE_AUTH
+RUN npx vite build
 
-FROM deps AS build
-COPY . .
-ARG NEXT_PUBLIC_API_PORT=8000
-# "same-origin" when a proxy serves pages and /api on one origin (docker-compose.public.yml).
-ARG NEXT_PUBLIC_API_URL=
-# Render passes service env vars as build args: API_HOSTPORT turns on the /api rewrite, PUBLIC_MODE adds HSTS.
-ARG API_HOSTPORT=
-ARG PUBLIC_MODE=
-ENV NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL API_HOSTPORT=$API_HOSTPORT PUBLIC_MODE=$PUBLIC_MODE
-ENV NEXT_TELEMETRY_DISABLED=1 NEXT_STANDALONE=1
-RUN npm run build
-
-FROM node:22-alpine AS runner
+FROM python:3.13-slim
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
-RUN addgroup -S app && adduser -S app -G app
-COPY --from=build --chown=app:app /app/.next/standalone ./
-COPY --from=build --chown=app:app /app/.next/static ./.next/static
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/backend DATA_DIR=/app/data SPA_DIR=/app/frontend/dist \
+    CATALOG_PATH=/app/data/catalog.json
+COPY backend/requirements.txt backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY backend/app backend/app
+COPY backend/scripts backend/scripts
+COPY data data
+COPY --from=web /web/dist frontend/dist
+RUN useradd -r app && chown -R app /app
 USER app
-EXPOSE 3000
-CMD ["node", "server.js"]
+EXPOSE 8000
+# ONE worker (T-11): model health, rate limits and background jobs live in memory.
+CMD ["sh", "-c", "uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

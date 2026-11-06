@@ -45,13 +45,14 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/wishes` | Your wishes with status and current step |
-| POST | `/wishes` | Create or update a wish. The client may send its own uuid, and partial updates are upserts. |
-| PATCH | `/wishes/{id}` | Why, prior attempts, follow-up answers, archetype, status |
-| POST | `/wishes/{id}/classify` | Classify the wish: model, with the keyword classifier as fallback |
-| POST | `/wishes/{id}/questions` | Three follow-up questions: model, with the fixed set as fallback |
-| POST | `/wishes/{id}/options` | `{step, rerollIndex?, rejectedMoves?, rejectReason?, excludeTitles?}`. Returns `{moves[], meta}`. Returns 409 if this step isn't open (D-03), 503 if every model failed. |
-| POST | `/wishes/{id}/select` | `{moveId, selection{position, rerollIndex, msSinceShown, shownMoveIds, rejectedBefore}}`. Returns SelectedMove. |
-| POST | `/wishes/{id}/complete` | Mark the wish complete |
+| GET | `/chips` | Starter wishes for the intake chips (`data/wishes.json`) |
+| GET | `/wishes/{id}` | One wish with its selected moves, `nextStep` and `nextOpen` |
+| POST | `/wishes` | Create or update a wish: `{id, text?, fromChip?, type?, focus?, domains?, guessed*?, why?, priorAttempts?, followUps?, archetype?}`. The client sends its own uuid; partial updates are upserts. 409 past `MAX_ACTIVE_WISHES`. |
+| POST | `/wishes/{id}/status` | `{status: active\|completed\|abandoned}` |
+| POST | `/classify` | `{wishText}`. Classify a wish: model, with the keyword classifier as fallback |
+| POST | `/questions` | `{wishText, type, focus, domains, why?, prior}`. Three follow-up questions: model, with the fixed set as fallback |
+| POST | `/wishes/{id}/options` | `{step, rerollIndex?, rejectedMoveIds?, rejectReason?}`. The server builds the prompt from the stored wish, the profile (D-06), earlier outcomes (D-07) and everything already shown for this step. Returns `{moves[], meta, skills}`. 409 if this step isn't open (D-03), 503 if every model failed. |
+| POST | `/wishes/{id}/select` | `{moveId, msSinceShown?, shownMoveIds?, rejectedBefore?}`. Returns SelectedMove. |
 | GET | `/selected-moves?status=` | Your selected moves |
 | GET | `/selected-moves/{id}` | One SelectedMove |
 | POST | `/selected-moves/{id}/abandon` | Give up on a move. The step reopens. |
@@ -77,7 +78,7 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/users/lookup?handle=` or `?email=` | Exact match only (D-35). Returns `{handle, displayName}`. |
-| POST | `/invitations` | `{selectedMoveId, buddyHandle, role: reviewer\|tester, message?}` |
+| POST | `/invitations` | `{selectedMoveId, buddy: handle or email, role: reviewer\|tester, message?}` |
 | GET | `/invitations?box=received\|sent` | Invitations with move title and status |
 | POST | `/invitations/{id}/accept` · `/decline` · `/revoke` | State changes. Accept and decline are the invitee's; revoke is the owner's. |
 | GET | `/reviews/queue` | Evidence waiting for your review as an accepted buddy |
@@ -92,8 +93,7 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 | GET | `/feed?category=&unread=&cursor=` | FeedItems, newest first, paginated |
 | POST | `/feed/{id}/read` | Mark read. Send `{read:false}` to mark unread (Event_Ecosystem's read toggle). |
 | POST | `/feed/read-all` | Mark everything read |
-| POST | `/feed/seen` | Called on Home load. Moves `last_seen_at` into `previous_seen_at`. |
-| GET | `/home` | `{eventContext, bestNextMove, activeMoves[], growthSummary, profileCard}` in one call |
+| GET | `/home` | `{eventContext, bestNextMove, activeMoves[], growthSummary, profileCard}` in one call. Opening Home counts as a visit (moves `last_seen_at` into `previous_seen_at`, D-39). |
 
 ## Admin (`/api/admin`, signed `wish_admin` cookie from `ADMIN_PASSWORD`, D-47)
 
@@ -105,6 +105,7 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 | POST | `/models` | `{action: prefer\|test\|refresh}`: model chain controls |
 | GET / PUT | `/policies` | List every policy with its value, its source (default, env or admin) and its decision text; set or clear an admin override (D-52) |
 | POST | `/endorsements` | `{userId, skillId, note}`: Verified endorsement (D-24) |
-| GET | `/users/{id}/growth` | Any user's GrowthState |
+| GET | `/users/{handle}/growth` | Any user's GrowthState |
+| GET | `/session` · POST `/logout` | Whether the admin cookie is valid · sign out |
 | POST | `/evidence/{id}/rescore` | Re-run the rubric |
 | GET | `/client-ip` | Debug: the client IP the rate limits see |

@@ -6,3 +6,8 @@ node_modules
 next-env.d.ts
 exports
 backups
+frontend/dist
+supabase/.temp
+supabase/.branches
+.pytest_cache
+**/__pycache__

@@ -1,0 +1,65 @@
+/* The one design (docs/DESIGN.md): Event_Ecosystem @ 6fd258c, values copied exactly. Components use these tokens,
+   never raw hex values. */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-chip: "Roboto", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #00629b;
+  --color-heading: #287aaa;
+  --color-navy: #0b3142;
+  --color-text: #3c3c3c;
+  --color-secondary: #5b6472;
+  --color-time: #729acd;
+  --color-border: #9db0c9;
+  --color-chip-text: #49454f;
+  --color-chip-border: #cac4d0;
+  --color-search: #edf5ff;
+  --color-panel: #f8fbfe;
+  --color-subpanel: #f5f7f9;
+  --color-chip-active: #e7f3fe;
+  --color-unread: #f04444;
+  --color-skeleton: #d9d9d9;
+  --color-page: #dfeffe;
+
+  /* Category pairs: circle tint / icon colour */
+  --color-social-bg: #fee8e8;
+  --color-social: #fd3d40;
+  --color-pro-bg: #e4dafb;
+  --color-pro: #5d2efb;
+  --color-enablement-bg: #e8f5fe;
+  --color-enablement: #0578fb;
+  --color-impact-bg: #fef5ec;
+  --color-impact: #fe7f05;
+  --color-events-bg: #fdf0f9;
+  --color-events: #fd3d93;
+  --color-growth-bg: #e9f6f7;
+  --color-growth: #059f9b;
+
+  --radius-chip: 8px;
+  --radius-panel: 12px;
+  --radius-search: 20px;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    min-width: 320px;
+    min-height: 100dvh;
+    background: var(--color-page);
+    font-family: var(--font-sans);
+    color: var(--color-navy);
+  }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), [role="button"] { cursor: pointer; }
+}
+
+.page-bg { background: linear-gradient(180deg, #fff 0%, #e7f3fe 86%, #dfeffe 100%); }
+
+.notification-list { scrollbar-color: rgb(0 0 0 / 50%) transparent; scrollbar-width: thin; }
+.notification-list::-webkit-scrollbar { width: 11px; }
+.notification-list::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 7px; background: rgb(0 0 0 / 50%); background-clip: padding-box; }
+.chip-scroll { scrollbar-width: none; }
+.chip-scroll::-webkit-scrollbar { display: none; }
+@media (max-width: 767px) { .notification-list { max-height: none; } }

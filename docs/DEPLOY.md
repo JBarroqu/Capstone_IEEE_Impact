@@ -20,10 +20,12 @@ The app runs as one Render web service (API + React build) and one Supabase proj
 5. **Keys.** Copy the URL, the publishable (anon) key, and the secret (service role) key.
 
 ## Render service
-`render.yaml` defines one Docker web service, `impact-app`:
-- a multi-stage build compiles `frontend/` and copies the build into the Python image;
-- it runs `uvicorn app.main:app --workers 1`;
+`render.yaml` defines one Docker web service, `impact-app` (Dockerfile at the repo root):
+- a multi-stage build compiles `frontend/` (the `VITE_*` values are build args) and copies the build into the Python image;
+- it runs `uvicorn app.main:app --workers 1`, serving the API and the React app on one origin;
 - the health check is `/api/v1/health`.
+
+Apply the migrations to the production project first (`supabase link --project-ref <ref> && supabase db push`).
 
 Environment variables:
 
@@ -53,9 +55,16 @@ That's fine for development and demos. Use paid tiers for a real cohort (Q6).
 
 ## Local development
 ```
-supabase start                 # local Postgres :54322, API :54321, Studio, Mailpit for magic-link emails
-supabase db reset              # apply migrations + seed
-npm run api                    # FastAPI on :8000
-npm run dev                    # Vite on :5173, proxies /api to :8000
+npm run setup          # deps + backend/.venv
+npm run db:start       # local Postgres :54322, API :54321, Studio :54323, Mailpit :54324 (magic-link emails)
+npm run db:reset       # apply supabase/migrations
+npm run api            # FastAPI on :8000
+npm run dev            # Vite on :5173, proxies /api to :8000
 ```
-`.env.example` lists every variable. For local runs, use the keys `supabase start` prints.
+Put the keys `supabase start` prints in a git-ignored `.env.local` (it loads before `.env`). Local auth settings
+(redirect URLs, Google provider switched off) are in `supabase/config.toml`; restart Supabase after editing it.
+
+## Google sign-in
+Wired but off. To switch it on: create a Google OAuth client (redirect URI `https://<ref>.supabase.co/auth/v1/callback`),
+enable Google in Supabase (or `[auth.external.google]` in `supabase/config.toml` locally, with
+`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET`), and set `VITE_GOOGLE_AUTH=on` so the button shows.

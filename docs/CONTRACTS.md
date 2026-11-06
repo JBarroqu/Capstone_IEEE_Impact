@@ -2,9 +2,9 @@
 
 A contract is the exact shape of data one module hands to another. These are the `... v0.1` outputs from the backbone diagram.
 
-**Where they live.** Contracts are pydantic models in `backend/app/contracts/`. `npm run schemas` exports them to:
-- `contracts/schemas/*.json` (JSON Schema, committed);
-- `frontend/src/contracts/*.ts` (TypeScript types).
+**Where they live.** Contracts are pydantic models in `backend/app/contracts/`. `npm run schemas` exports them to
+`contracts/schemas/*.json` (JSON Schema, committed). The frontend's matching types are hand-written in
+`frontend/src/lib/types.ts`.
 
 A test fails if a model changes but its committed schema doesn't, unless `schemaVersion` was bumped.
 
