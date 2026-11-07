@@ -10,6 +10,28 @@ import { ago, pts, STATUS_LABEL } from "@/lib/format";
 import type { FeedItem, Home } from "@/lib/types";
 
 const CHIPS = ["People", "Opportunity", "Impact", "Growth", "Enablement", "Social"];
+const WYWA_STORAGE_KEY = "wywa-cleared";
+
+function loadClearedWywa() {
+  try {
+    const storage = globalThis.localStorage;
+    const raw = storage ? storage.getItem(WYWA_STORAGE_KEY) : null;
+    if (!raw) return new Set<string>();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function saveClearedWywa(ids: Set<string>) {
+  try {
+    const storage = globalThis.localStorage;
+    if (storage) storage.setItem(WYWA_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // the list can still show; this is just a convenience persistence layer.
+  }
+}
 
 function FeedRow({ n, onToggle, onOpen }: { n: FeedItem; onToggle: () => void; onOpen: () => void }) {
   const read = !!n.readAt;
@@ -36,7 +58,7 @@ export default function HomePage() {
   const [unread, setUnread] = useState(0);
   const [chip, setChip] = useState("");
   const { me } = useAuth();
-  const [wywaChecked, setWywaChecked] = useState<Record<string, boolean>>({});
+  const [clearedWywa, setClearedWywa] = useState<Set<string>>(() => loadClearedWywa());
 
   const loadFeed = useCallback(() => {
     const qs = new URLSearchParams();
@@ -45,16 +67,7 @@ export default function HomePage() {
     get<{ items: FeedItem[]; unread: number }>(`/api/v1/feed?${qs}`).then((r) => { setItems(r.items); setUnread(r.unread); });
   }, [chip, q]);
   useEffect(() => { get<Home>("/api/v1/home").then(setHome); }, []);
-  useEffect(() => {
-    if (!home?.eventContext.whileYouWereAway.items) return;
-    setWywaChecked((prev) => {
-      const next = { ...prev };
-      for (const item of home.eventContext.whileYouWereAway.items) {
-        if (!(item.id in next)) next[item.id] = true;
-      }
-      return next;
-    });
-  }, [home?.eventContext.whileYouWereAway.items]);
+  useEffect(() => { saveClearedWywa(clearedWywa); }, [clearedWywa]);
   useEffect(loadFeed, [loadFeed]);
   useEffect(() => { if (location.hash === "#notifications") document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth" }); }, [items]);
 
@@ -66,7 +79,12 @@ export default function HomePage() {
     await post(`/api/v1/feed/${n.id}/read`, { read });
   };
   const clearWywa = async (n: FeedItem) => {
-    setWywaChecked((prev) => ({ ...prev, [n.id]: false }));
+    setClearedWywa((prev) => {
+      const next = new Set(prev);
+      next.add(n.id);
+      saveClearedWywa(next);
+      return next;
+    });
     setHome((curr) => {
       if (!curr) return curr;
       const remaining = curr.eventContext.whileYouWereAway.items.filter((x) => x.id !== n.id);
@@ -88,6 +106,7 @@ export default function HomePage() {
 
   const best = home?.bestNextMove;
   const wywa = home?.eventContext.whileYouWereAway;
+  const visibleWywa = wywa ? wywa.items.filter((n) => !clearedWywa.has(n.id)) : [];
   return (
     <div className="grid gap-8 lg:grid-cols-[424px_minmax(0,738px)]">
       <aside className="rounded-xl border border-border bg-panel px-4 pb-12 pt-[31px] lg:min-h-[825px]">
@@ -118,23 +137,20 @@ export default function HomePage() {
               {best.link && <ButtonLink to={best.link}>Go</ButtonLink>}
             </> : <Skeleton className="h-16 w-full" />}
           </div>
-          {wywa && wywa.count > 0 && (
+          {visibleWywa.length > 0 && (
             <div className="mt-5">
               <h2 className="mb-2 text-base font-bold text-primary">While you were away</h2>
-              <p className="mb-2 text-xs text-secondary">{wywa.count} update{wywa.count === 1 ? "" : "s"} since your last visit.</p>
+              <p className="mb-2 text-xs text-secondary">{visibleWywa.length} update{visibleWywa.length === 1 ? "" : "s"} since your last visit.</p>
               <ul className="flex flex-col gap-2">
-                {wywa.items.slice(0, 4).map((n) => {
-                  const checked = wywaChecked[n.id] ?? true;
-                  return (
-                    <li key={n.id} className="flex items-center gap-2">
-                      <button type="button" onClick={() => open(n)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-white p-3 text-left text-sm hover:shadow-md">
-                        <CategoryIcon category={n.category} size={32} /><span className="min-w-0 flex-1 truncate font-semibold">{n.title}</span>
-                      </button>
-                      <button type="button" onClick={() => void clearWywa(n)} aria-label={`${checked ? "Mark unread" : "Mark read"}: ${n.title}`}
-                        className={`size-3 shrink-0 rounded-full border ${checked ? "border-unread bg-unread" : "border-border bg-transparent"}`} />
-                    </li>
-                  );
-                })}
+                {visibleWywa.slice(0, 4).map((n) => (
+                  <li key={n.id} className="flex items-center gap-2">
+                    <button type="button" onClick={() => open(n)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-white p-3 text-left text-sm hover:shadow-md">
+                      <CategoryIcon category={n.category} size={32} /><span className="min-w-0 flex-1 truncate font-semibold">{n.title}</span>
+                    </button>
+                    <button type="button" onClick={() => void clearWywa(n)} aria-label={`Mark unread: ${n.title}`}
+                      className="size-3 shrink-0 rounded-full border border-unread bg-unread" />
+                  </li>
+                ))}
               </ul>
             </div>
           )}

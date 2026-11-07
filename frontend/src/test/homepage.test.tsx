@@ -35,6 +35,19 @@ vi.mock("@/components/ui", async () => {
 });
 
 beforeEach(() => {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value); },
+      removeItem: (key: string) => { store.delete(key); },
+      clear: () => { store.clear(); },
+      key: (index: number) => Array.from(store.keys())[index] ?? null,
+      get length() { return store.size; },
+    },
+    configurable: true,
+  });
+
   vi.mocked(get).mockImplementation(async (path: string) => {
     if (path === "/api/v1/home") {
       return {
@@ -92,5 +105,19 @@ it("removes a while-you-were-away item from the list when its dot is clicked", a
   await waitFor(() => {
     expect(screen.queryByText("Follow up item")).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledWith("/api/v1/feed/wywa-1/read", { read: false });
+  });
+});
+
+it("keeps cleared while-you-were-away items hidden after a refresh", async () => {
+  localStorage.setItem("wywa-cleared", JSON.stringify(["wywa-1"]));
+
+  render(
+    <MemoryRouter>
+      <HomePage />
+    </MemoryRouter>
+  );
+
+  await waitFor(() => {
+    expect(screen.queryByText("Follow up item")).not.toBeInTheDocument();
   });
 });
