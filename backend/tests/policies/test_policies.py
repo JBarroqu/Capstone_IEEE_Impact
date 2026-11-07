@@ -78,3 +78,32 @@ def test_env_override_wins_over_default(monkeypatch):
 def test_int_range_enforced():
     with pytest.raises(loader.PolicyError):
         loader.coerce(BY_KEY["RESUME_MAX_MB"], 50)
+
+
+MODULE_DOCS = sorted((DOC.parent / "modules").glob("*.md"))
+
+
+def test_module_docs_name_only_real_policies():
+    """Each docs/modules/*.md 'Policies that affect this module' list names only keys that exist."""
+    missing = []
+    for f in MODULE_DOCS:
+        section = f.read_text().split("## Policies that affect this module", 1)[-1].split("\n## ", 1)[0]
+        missing += [f"{f.name}: {k}" for k in re.findall(r"`([A-Z][A-Z_]{3,})`", section)
+                    if k not in BY_KEY and k != "LLM_PROVIDER"]
+    assert not missing, f"module docs name settings that don't exist: {missing}"
+
+
+def test_owner_doc_choices_match_code():
+    """Every '`KEY` = **default** | other | ...' line in MODULE_OWNER_DECISIONS.md lists exactly the policy's choices,
+    with the real default in bold, so an owner is never offered a choice the code doesn't have."""
+    bad = []
+    for key, rest in re.findall(r"`([A-Z][A-Z_]{3,})` = (.+)", DOC.read_text()):
+        p = BY_KEY.get(key)
+        if not p or p.kind != "choice":
+            continue
+        rest = re.split(r" · ", rest)[0]
+        named = [re.sub(r"\s*\(.*$", "", x).strip().strip("*").strip() for x in rest.split(" | ")]
+        bold = re.match(r"\*\*(.+?)\*\*", rest)
+        if set(named) != {str(c) for c in p.choices} or not bold or bold.group(1) != str(p.default):
+            bad.append(f"{key}: doc {named}, code {list(p.choices)} default {p.default}")
+    assert not bad, bad

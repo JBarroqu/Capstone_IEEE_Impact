@@ -4,6 +4,9 @@
  *   -> buddy signs in by magic link (Mailpit) -> accepts -> reviews -> points final -> feed -> move 2 opens
  * Needs: supabase start, the API serving the built app with ENV=test LLM_FAKE=1 (npm run e2e:serve).
  * Usage: npx tsx e2e/full-loop.ts [--shots=dir]   (BASE_URL defaults to http://localhost:8000)
+ * It follows the live policy values (GET /api/v1/config), so serving with owners' original choices, e.g.
+ *   BUDDY_DISCOVERY=search SURVEY_SCREENS=on MOVE_TAGS_SOURCE=user npm run e2e:serve
+ * checks those paths too: buddy search as you type, the survey, tag choices, and "Add to profile".
  */
 import { chromium, type Page } from "playwright-core";
 
@@ -13,6 +16,7 @@ const mailpit = process.env.MAILPIT_URL ?? "http://127.0.0.1:54324";
 const id = Math.random().toString(36).slice(2, 7);
 const errors: string[] = [];
 const pages: Page[] = [];
+let policy: Record<string, unknown> = {};
 
 async function shot(p: Page, name: string) {
   if (shots) await p.screenshot({ path: `${shots}/${name}.png`, fullPage: true });
@@ -28,7 +32,9 @@ async function newPage(browser: import("playwright-core").Browser) {
 }
 
 async function onboard(p: Page, name: string, handle: string) {
+  if (policy.ONBOARDING_REQUIRED === false) await p.getByRole("link", { name: "Finish profile" }).click();  // D-01: Home reminds
   await p.getByText("Where are you now?").waitFor();
+  await p.getByLabel("Name").waitFor();  // the form appears once the saved profile has loaded
   await p.getByLabel("Name").fill(name);
   await p.getByLabel("Handle").fill(handle);
   await p.getByLabel("Headline").fill("CS senior building data tools");
@@ -64,6 +70,8 @@ async function magicLink(email: string): Promise<string> {
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
   try {
+    policy = (await (await fetch(`${base}/api/v1/config`)).json()).policies ?? {};
+    console.log(`policies: BUDDY_DISCOVERY=${policy.BUDDY_DISCOVERY} SURVEY_SCREENS=${policy.SURVEY_SCREENS} MOVE_TAGS_SOURCE=${policy.MOVE_TAGS_SOURCE} CONTRIBUTION_FROM_EVIDENCE=${policy.CONTRIBUTION_FROM_EVIDENCE}`);
     // ---- User A: password sign-up and onboarding (Module 1)
     const a = await newPage(browser);
     await a.goto(`${base}/`);
@@ -99,9 +107,20 @@ async function magicLink(email: string): Promise<string> {
     await a.getByRole("button", { name: "Lock in move 1" }).click();
     await a.getByRole("heading", { name: "Show what you did" }).waitFor();
     const wishUrl = a.url();
+    if (policy.SURVEY_SCREENS === "on") {             // D-46: the Wish Engine survey, quick-mode rating only
+      await a.getByRole("heading", { name: "How useful is this move for your wish?" }).waitFor();
+      await a.getByRole("button", { name: "4", exact: true }).click();
+      await shot(a, "survey");
+      await a.getByRole("button", { name: "Submit", exact: true }).click();
+      await a.getByRole("heading", { name: "How useful is this move for your wish?" }).waitFor({ state: "detached" });
+    }
 
     // ---- Evidence -> rubric -> pending points (Module 3)
     await a.getByRole("button", { name: "Write it up" }).click();
+    if (policy.MOVE_TAGS_SOURCE === "user") {         // D-11 user: Growth-Validation's tag choices
+      await a.getByLabel("Activity type").selectOption("explore");
+      await a.getByLabel("Difficulty").selectOption("easy");
+    }
     await a.getByLabel("What you did and what came of it").fill("Queried a city open-data table with three SQL queries and published a chart in a README.");
     await a.getByRole("button", { name: "Submit evidence" }).click();
     await a.getByText("pending").first().waitFor({ timeout: 20_000 });
@@ -118,8 +137,15 @@ async function magicLink(email: string): Promise<string> {
     await b.getByRole("button", { name: "Open profile menu" }).click();
     await b.getByRole("button", { name: "Sign out" }).click();
 
-    await a.getByLabel("Invite by handle or email").fill(`priya_${id}`);
-    await a.getByRole("button", { name: "Send invite" }).click();
+    if (policy.BUDDY_DISCOVERY === "search") {       // D-35 search: mike-branch's search as you type
+      await a.getByLabel("Find a buddy by handle, or invite by email").fill(`iya_${id}`);
+      await a.getByRole("button", { name: `Invite @priya_${id}` }).waitFor();
+      await shot(a, "buddy-search");
+      await a.getByRole("button", { name: `Invite @priya_${id}` }).click();
+    } else {
+      await a.getByLabel("Invite by handle or email").fill(`priya_${id}`);
+      await a.getByRole("button", { name: "Send invite" }).click();
+    }
     await a.getByText("invited").waitFor();
 
     // B comes back with a magic link (Mailpit)
@@ -150,6 +176,10 @@ async function magicLink(email: string): Promise<string> {
     await a.getByText("Validated").first().waitFor();
     await a.getByRole("heading", { name: "Pick your second move" }).waitFor();
     await shot(a, "wish-validated-next");
+    if (policy.CONTRIBUTION_FROM_EVIDENCE === "suggest") {  // D-45: the offer on validated evidence
+      await a.getByRole("button", { name: "Add to profile" }).click();
+      await a.getByText("Added to your profile as a verified contribution.").waitFor();
+    }
     await a.goto(`${base}/`);
     for (const t of ["Points validated", "left feedback", "Next move ready", "Move locked"]) await a.getByText(t).first().waitFor();
     await shot(a, "home-feed");

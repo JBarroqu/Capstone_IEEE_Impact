@@ -25,7 +25,7 @@ export type Wish = { id: string; text: string; status: string; type: string | nu
 export type SelectedMove = { selectedMoveId: string; userId: string; wishId: string; status: string; wish: { text: string }; move: Move; selection: { step: number; position: number } };
 
 export type Evidence = {
-  id: string; selectedMoveId: string; skillId: string; activityType: string; difficulty: string; difficultyFinal: string | null;
+  id: string; selectedMoveId: string; onProfile?: boolean; skillId: string; activityType: string; difficulty: string; difficultyFinal: string | null;
   artifactType: "link" | "file" | "text"; artifactUrl: string | null; fileName: string | null; hasFile: boolean; summary: string; status: string;
   aiScore: number | null; aiConfidence: number | null; aiFeedback: string | null; aiCriteria: Record<string, number>; finalQuality: number | null;
   peerConfirmed: boolean | null; createdAt: string; finalizedAt: string | null; points: number | null; pendingPoints?: number | null; ownerId?: string;

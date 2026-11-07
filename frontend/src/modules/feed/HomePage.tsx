@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { UserButton } from "@/app/AppShell";
 import { Button, ButtonLink, CategoryIcon, Chip, Divider, Empty, Panel, PanelTitle, Progress, Skeleton, SubPanel, Tag, TierBadge } from "@/components/ui";
 import { get, post } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { ago, pts, STATUS_LABEL } from "@/lib/format";
 import type { FeedItem, Home } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [unread, setUnread] = useState(0);
   const [chip, setChip] = useState("");
+  const { me } = useAuth();
 
   const loadFeed = useCallback(() => {
     const qs = new URLSearchParams();
@@ -115,6 +117,13 @@ export default function HomePage() {
       </aside>
 
       <section className="flex min-w-0 flex-col gap-8">
+        {me && !me.onboarded && (
+          /* ONBOARDING_REQUIRED=false (D-01): the profile isn't forced, so Home reminds instead. */
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary bg-chip-active px-5 py-4">
+            <p className="flex-1 text-[15px] text-text">Finish your profile so your moves fit your goals and skills.</p>
+            <ButtonLink to="/onboarding">Finish profile</ButtonLink>
+          </div>
+        )}
         <Panel id="notifications" className="lg:min-h-[646px]">
           <PanelTitle as="h1" count={unread} right={unread > 0 ? <Button kind="text" className="text-xs" onClick={async () => { await post("/api/v1/feed/read-all"); loadFeed(); }}>Mark all read</Button> : undefined}>
             Notifications

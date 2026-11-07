@@ -28,7 +28,7 @@
 | Two roles, **reviewer** and **tester** | The backbone diagram names both; the branch had one generic buddy | D-30 |
 | A reviewer's feedback has a 1–5 rating and a confirm / not-confirm | The diagram's "confirm" step was missing | D-13, D-19 |
 | Feedback becomes **SocialEvidence v0.1** and is sent to growth | "Turn social interaction into evidence" was missing | CONTRACTS |
-| Find buddies by exact handle or email | Prefix search let anyone list every username | D-35 |
+| Find buddies by exact handle or email; your search-as-you-type is the `search` choice | The search let anyone list every username | D-35 |
 | Invitation, accept and feedback notifications go to the feed | Module 5 | D-38 |
 | Own auth, `users`, `sessions` removed | One auth | T-04 |
 

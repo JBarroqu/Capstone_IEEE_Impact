@@ -108,7 +108,26 @@ async def list_evidence(user_id: str, selected_move_id: str | None = None) -> li
         pe = public_evidence(e, pts.get((e["id"], "validated")) if e["status"] == "validated" else None)
         pe["pendingPoints"] = pts.get((e["id"], "provisional")) if e["status"] == "awaiting_review" else None
         out.append(pe)
+    validated = [e["id"] for e in out if e["status"] == "validated"]
+    on = await _profile().evidence_on_profile(user_id, validated) if validated else set()
+    for e in out:
+        e["onProfile"] = e["id"] in on
     return out
+
+
+async def add_to_profile(user_id: str, evidence_id: str) -> None:
+    """D-45 suggest: the owner accepts the offer to feature validated evidence as a verified contribution."""
+    if policies.get("CONTRIBUTION_FROM_EVIDENCE") == "off":
+        raise GrowthError("Adding evidence to your profile is switched off.", 409)
+    async with db.read() as c:
+        r = (await c.execute(select(evidence.c.user_id, evidence.c.status, evidence.c.summary, evidence.c.selected_move_id)
+                             .where(evidence.c.id == evidence_id))).first()
+    if not r or str(r.user_id) != user_id:
+        raise GrowthError("not found", 404)
+    if r.status != "validated":
+        raise GrowthError("Only validated evidence can be added to your profile.", 409)
+    sm = await _wish().get_selected_move(str(r.selected_move_id))
+    await _profile().add_verified_contribution(user_id, evidence_id, sm.move.title if sm else "Validated work", r.summary[:1000])
 
 
 def public_evidence(e: dict, points: float | None = None) -> dict:

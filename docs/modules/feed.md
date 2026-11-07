@@ -51,7 +51,7 @@ As committed, it doesn't build:
 - `WYWA_MODE` (D-39)
 - the best-next-move order (D-40)
 - `EVENT_SOURCES` (D-41)
-- the chip mapping (D-50)
+- `OPPORTUNITY_CHIP` for the Opportunity chip; the other chips in `feed/rules.py` (D-50)
 
 ## Tests
 - Each domain event creates exactly one notification, or none when disabled.

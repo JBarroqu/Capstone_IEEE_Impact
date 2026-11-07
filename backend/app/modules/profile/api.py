@@ -40,14 +40,19 @@ async def is_onboarded(user_id: str) -> bool:
     return v is not None
 
 
-async def find_user(handle: str | None = None, email: str | None = None, prefix: bool = False) -> list[dict]:
-    """Buddy lookup (D-35): exact handle or exact email; prefix search only when BUDDY_DISCOVERY=prefix."""
+async def find_user(handle: str | None = None, email: str | None = None, search: bool = False) -> list[dict]:
+    """Buddy lookup (D-35): exact handle or exact email. search=True is mike-branch's username search: the text may
+    appear anywhere in the handle, up to 20 results in handle order. Emails always match exactly."""
     async with db.read() as c:
         if handle:
             h = handle.strip().lower().lstrip("@")
-            cond = profiles.c.handle.ilike(f"{h.replace('%', '').replace('_', r'\_')}%") if prefix else func.lower(profiles.c.handle) == h
+            if search:
+                pat = "%" + h.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                cond, limit = profiles.c.handle.ilike(pat, escape="\\"), 20
+            else:
+                cond, limit = func.lower(profiles.c.handle) == h, 10
             rows = (await c.execute(select(profiles.c.user_id, profiles.c.handle, profiles.c.display_name)
-                                    .where(cond, profiles.c.handle.is_not(None)).limit(10))).all()
+                                    .where(cond, profiles.c.handle.is_not(None)).order_by(profiles.c.handle).limit(limit))).all()
         elif email:
             rows = (await c.execute(text(
                 "select p.user_id, p.handle, p.display_name from auth.users u join profile.profiles p on p.user_id = u.id "
@@ -59,6 +64,11 @@ async def find_user(handle: str | None = None, email: str | None = None, prefix:
 
 async def touch_seen(user_id: str):
     return await service.touch_seen(user_id)
+
+
+async def evidence_on_profile(user_id: str, evidence_ids: list[str]) -> set[str]:
+    """Which of these evidence items are already featured contributions (D-45)."""
+    return await service.evidence_on_profile(user_id, evidence_ids)
 
 
 async def add_verified_contribution(user_id: str, evidence_id: str, title: str, description: str) -> None:

@@ -59,10 +59,9 @@ It publishes `EvidenceSubmitted`, `EvidenceScored`, `EvidenceValidated`, `Eviden
 - `DECAY_ENABLED` (D-22)
 - `VERIFIED_REQUIRES` (D-24)
 - `UNLOCK_MATCH` (D-25)
-- `UNLOCK_REVOKE` (D-26)
 - `AI_DIFFICULTY_ADJUST` (D-12)
-- `RUBRIC_VERSION` (D-48)
-- `SKILL_MODEL`, `CATALOG_PATH` (D-08, D-09)
+- `SKILL_MODEL` (D-08); the taxonomy itself is `data/catalog.json` (D-09)
+- No setting: unlocks are never revoked (D-26); the rubric prompt is fixed at v1 in `growth/rubric.py` (D-48)
 
 ## Changing the scoring
 - **Change a constant:** add a new `ScoringRules` version (e.g. `v1.2`) and select it with `SCORING_RULES`. Old points keep their version.

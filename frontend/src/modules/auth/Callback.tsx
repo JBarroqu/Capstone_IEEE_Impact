@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ErrorNote } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
+import { useConfig } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { AuthCard } from "./AuthCard";
 
@@ -11,13 +12,15 @@ export default function Callback() {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const { refreshMe } = useAuth();
+  const { policy } = useConfig();
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const go = async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) { setError(params.get("error_description") || "This link is no longer valid."); return; }
       const me = await refreshMe();
-      nav(me && !me.onboarded ? "/onboarding" : params.get("next") || "/", { replace: true });
+      const force = policy("ONBOARDING_REQUIRED") !== false;  // D-01: false leaves a reminder on Home instead
+      nav(me && !me.onboarded && force ? "/onboarding" : params.get("next") || "/", { replace: true });
     };
     void go();
     // eslint-disable-next-line react-hooks/exhaustive-deps

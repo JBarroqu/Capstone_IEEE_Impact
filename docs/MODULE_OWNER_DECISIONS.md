@@ -44,7 +44,7 @@ These come from merging five separate apps into one. They aren't up for per-modu
 - **Before:** there was no flow; the profile was a standalone API.
 - **Now:** after sign-up you must complete your profile before using the rest of the app.
 - **Why:** the Wish Engine uses the profile to fit moves to you.
-- **Setting:** `ONBOARDING_REQUIRED` = **true** | false (false shows a reminder on Home instead)
+- **Setting:** `ONBOARDING_REQUIRED` = **true** | false (false shows a "Finish your profile" reminder at the top of Home instead)
 
 ### D-42, D-43 Resume import (new)
 - **Before:** you filled the form by hand.
@@ -68,8 +68,8 @@ These come from merging five separate apps into one. They aren't up for per-modu
 - **Setting:** `HANDLE_REQUIRED` = **true** | false
 
 ### D-45 Validated evidence on your profile (new)
-- **Now:** when evidence is validated in Module 3, you're *offered* to add it to your featured contributions as verified.
-- **Setting:** `CONTRIBUTION_FROM_EVIDENCE` = **suggest** | auto | off
+- **Now:** when evidence is validated in Module 3, the evidence card offers "Add to profile", which adds it to your featured contributions as verified.
+- **Setting:** `CONTRIBUTION_FROM_EVIDENCE` = **suggest** | auto (added without asking) | off
 
 ### D-06 What of the profile the move generator sees (new)
 - **Now:** the Wish Engine's prompt gets a summary of your profile:
@@ -106,9 +106,9 @@ These come from merging five separate apps into one. They aren't up for per-modu
 - **Setting:** `MOVE_TAGS_SOURCE` = **model** | user
 
 ### D-46 Study mechanics removed
-- **Before:** typed participant names, a consent screen, "delete TEST sessions", and the rating/feedback survey.
-- **Now:** the event log and admin analytics stay, keyed by the signed-in user; the rest is removed.
-- **Setting:** `SURVEY_SCREENS` = **off** | on
+- **Before:** typed participant names, a consent screen, "delete TEST sessions", and the survey after the path: a 1–5 rating (quick mode stopped there), then "would you do move 1 this week", "would you pay" for each paid option shown, and open feedback.
+- **Now:** the event log and admin analytics stay, keyed by the signed-in user. Names, consent and TEST deletion are removed; the survey is off.
+- **Setting:** `SURVEY_SCREENS` = **off** | on (the survey as built: shown once the path is locked; with `MOVES_PER_WISH` = 1 it asks only the rating, as quick mode did, and with 3 it asks all four)
 
 ### D-53 Any number of active wishes (new)
 - **Now:** you can have any number of active wishes, each with at most one open move.
@@ -128,7 +128,7 @@ Your scoring formulas and constants are kept exactly. Base points, difficulty mu
 ### D-11 Scoring inputs come from the move
 - **Before:** the user picked activity type, difficulty and skill on the evidence form, so anyone could claim "create, hard" for anything.
 - **Now:** they are read from the selected move's tags (see Module 2, D-11). The rubric can still shift difficulty by one level, as in your design.
-- **Setting:** `MOVE_TAGS_SOURCE` = **model** | user
+- **Setting:** `MOVE_TAGS_SOURCE` = **model** | user (your original: the evidence form shows skill, activity type and difficulty as choices, starting from the move's tags)
 
 ### D-08 Target career is chosen in the profile
 - **Before:** a career dropdown on your Career page.
@@ -221,9 +221,9 @@ Your 14 tests are ported.
 - **Setting:** `VALIDATION_MODE` (see Module 3)
 
 ### D-35 Find buddies by exact handle or email
-- **Before:** a live prefix search over usernames, which let any user list everyone.
-- **Now:** you type the exact handle or email.
-- **Setting:** `BUDDY_DISCOVERY` = **exact** | prefix
+- **Before:** a "Find user by username" box. As you typed, it listed up to 20 usernames containing the text anywhere, each with an "Invite @user" button. In an app anyone can sign up to, that lets any user list everyone, one letter at a time.
+- **Now:** you type the exact handle or email and press Send invite.
+- **Setting:** `BUDDY_DISCOVERY` = **exact** | search (your original: matches anywhere in the handle, up to 20, shown as you type with an Invite button each; emails still match exactly)
 
 ### D-36 Buddies can open the evidence file (new)
 - **Now:** your accepted buddy can open your evidence file through a link that works for 60 seconds. Files are never public.
@@ -280,7 +280,7 @@ Your design is now the design for the whole app (`docs/DESIGN.md`), and your Hom
   - People → Social and Pro (as you had);
   - **Opportunity → Enablement and Events** (you had Events and Pro; Pro now means "your moves");
   - Impact, Growth, Enablement and Social → themselves.
-- **Setting:** `backend/app/modules/feed/rules.py`
+- **Setting:** `OPPORTUNITY_CHIP` = **enablement_events** | events_pro (your original). The other chips are in `backend/app/modules/feed/rules.py`.
 
 ### D-41 External events not built yet
 - **Now:** detecting outside events (career fairs, IEEE events, "happening nearby") isn't built. The Events category is reserved for it.
@@ -309,3 +309,4 @@ The app runs with the default in the last column until an owner answers.
 | Date | Entry | Change | By |
 |---|---|---|---|
 | 2026-11-05 | all | Created; all entries waiting for owner review | Waleed |
+| 2026-11-06 | D-35, D-50, D-46, D-11, D-45, D-01 | Each alternative now restores the original behaviour end to end, not just in the backend: buddy search as you type (`search` replaces `prefix`, which matched differently from the original), the original Opportunity chip, the full survey, user-chosen tags, the "Add to profile" offer and the Home reminder. Defaults unchanged. | Waleed |

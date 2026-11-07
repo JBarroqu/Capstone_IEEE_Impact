@@ -34,7 +34,7 @@ export function MoveTags({ m, skills }: { m: Pick<Move, "minutes" | "cost" | "ac
   );
 }
 
-export function Pick({ wishId, step, onLocked }: { wishId: string; step: number; onLocked: (sm: SelectedMove) => void }) {
+export function Pick({ wishId, step, onLocked, onShown }: { wishId: string; step: number; onLocked: (sm: SelectedMove) => void; onShown?: (moves: Move[]) => void }) {
   const [moves, setMoves] = useState<Move[] | null>(null);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function Pick({ wishId, step, onLocked }: { wishId: string; step: number;
         { step, rerollIndex: r, rejectedMoveIds: rejectedIds ?? [], rejectReason: reason }, 1);
       shownAt.current = Date.now();
       shownIds.current = [...shownIds.current, ...res.moves.map((m) => m.id)];
-      setReroll(r); setMoves(res.moves); setSkills(res.skills);
+      setReroll(r); setMoves(res.moves); setSkills(res.skills); onShown?.(res.moves);
       const meta = res.meta;
       track("options_shown", {
         move_ids: res.moves.map((m) => m.id), reroll_index: r, relaxed: meta.relaxed, sources: meta.sources,

@@ -94,6 +94,15 @@ async def save(user_id: str, body: ProfessionalState, complete_onboarding: bool)
     return await get_state(user_id)
 
 
+async def evidence_on_profile(user_id: str, evidence_ids: list[str]) -> set[str]:
+    if not evidence_ids:
+        return set()
+    async with db.read() as c:
+        rows = (await c.execute(select(contributions.c.evidence_id).where(and_(
+            contributions.c.user_id == user_id, contributions.c.evidence_id.in_(evidence_ids))))).scalars()
+    return {str(r) for r in rows}
+
+
 async def add_verified_contribution(user_id: str, evidence_id: str, title: str, description: str) -> None:
     async with db.tx() as c:
         exists = (await c.execute(select(contributions.c.id).where(and_(contributions.c.user_id == user_id,

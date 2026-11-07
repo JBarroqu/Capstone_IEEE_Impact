@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from ... import db, policies
 from ...contracts import BestNextMoveTrigger, DomainEvent, EventContext, FeedItem, WhileYouWereAway
 from ...policies.notifications import rule_for
-from .rules import CHIPS
+from .rules import categories
 from .tables import notifications
 
 log = logging.getLogger("impact.feed")
@@ -57,7 +57,7 @@ def _item(r) -> FeedItem:
 async def list_feed(user_id: str, chip: str | None, unread: bool, query: str | None, before: str | None, limit: int = 30) -> dict:
     q = select(notifications).where(notifications.c.user_id == user_id)
     if chip:
-        cats = CHIPS.get(chip)
+        cats = categories(chip)
         if cats is None:
             return {"items": [], "unread": 0}
         q = q.where(notifications.c.category.in_(cats))
