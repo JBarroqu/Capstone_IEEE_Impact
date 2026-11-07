@@ -34,6 +34,7 @@ export default function HomePage() {
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [unread, setUnread] = useState(0);
   const [chip, setChip] = useState("");
+  const [wywaChecked, setWywaChecked] = useState<Record<string, boolean>>({});
 
   const loadFeed = useCallback(() => {
     const qs = new URLSearchParams();
@@ -42,16 +43,46 @@ export default function HomePage() {
     get<{ items: FeedItem[]; unread: number }>(`/api/v1/feed?${qs}`).then((r) => { setItems(r.items); setUnread(r.unread); });
   }, [chip, q]);
   useEffect(() => { get<Home>("/api/v1/home").then(setHome); }, []);
+  useEffect(() => {
+    if (!home?.eventContext.whileYouWereAway.items) return;
+    setWywaChecked((prev) => {
+      const next = { ...prev };
+      for (const item of home.eventContext.whileYouWereAway.items) {
+        if (!(item.id in next)) next[item.id] = true;
+      }
+      return next;
+    });
+  }, [home?.eventContext.whileYouWereAway.items]);
   useEffect(loadFeed, [loadFeed]);
   useEffect(() => { if (location.hash === "#notifications") document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth" }); }, [items]);
 
-  const toggle = async (n: FeedItem) => {
+  const toggle = async (n: FeedItem, opts: { updateUnread?: boolean } = {}) => {
     const read = !n.readAt;
+    const updateUnread = opts.updateUnread ?? items?.some((x) => x.id === n.id) ?? false;
     setItems((xs) => xs?.map((x) => (x.id === n.id ? { ...x, readAt: read ? new Date().toISOString() : null } : x)) ?? null);
-    setUnread((u) => u + (read ? -1 : 1));
+    if (updateUnread) setUnread((u) => u + (read ? -1 : 1));
     await post(`/api/v1/feed/${n.id}/read`, { read });
   };
-  const open = async (n: FeedItem) => { if (!n.readAt) await toggle(n); if (n.link) nav(n.link); };
+  const clearWywa = async (n: FeedItem) => {
+    setWywaChecked((prev) => ({ ...prev, [n.id]: false }));
+    setHome((curr) => {
+      if (!curr) return curr;
+      const remaining = curr.eventContext.whileYouWereAway.items.filter((x) => x.id !== n.id);
+      return {
+        ...curr,
+        eventContext: {
+          ...curr.eventContext,
+          whileYouWereAway: {
+            ...curr.eventContext.whileYouWereAway,
+            count: Math.max(0, curr.eventContext.whileYouWereAway.count - 1),
+            items: remaining,
+          },
+        },
+      };
+    });
+    await post(`/api/v1/feed/${n.id}/read`, { read: false });
+  };
+  const open = async (n: FeedItem) => { if (!n.readAt) await toggle(n, { updateUnread: items?.some((x) => x.id === n.id) ?? false }); if (n.link) nav(n.link); };
 
   const best = home?.bestNextMove;
   const wywa = home?.eventContext.whileYouWereAway;
@@ -90,11 +121,18 @@ export default function HomePage() {
               <h2 className="mb-2 text-base font-bold text-primary">While you were away</h2>
               <p className="mb-2 text-xs text-secondary">{wywa.count} update{wywa.count === 1 ? "" : "s"} since your last visit.</p>
               <ul className="flex flex-col gap-2">
-                {wywa.items.slice(0, 4).map((n) => (
-                  <li key={n.id}><button type="button" onClick={() => open(n)} className="flex w-full items-center gap-3 rounded-lg bg-white p-3 text-left text-sm hover:shadow-md">
-                    <CategoryIcon category={n.category} size={32} /><span className="min-w-0 flex-1 truncate font-semibold">{n.title}</span>
-                  </button></li>
-                ))}
+                {wywa.items.slice(0, 4).map((n) => {
+                  const checked = wywaChecked[n.id] ?? true;
+                  return (
+                    <li key={n.id} className="flex items-center gap-2">
+                      <button type="button" onClick={() => open(n)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-white p-3 text-left text-sm hover:shadow-md">
+                        <CategoryIcon category={n.category} size={32} /><span className="min-w-0 flex-1 truncate font-semibold">{n.title}</span>
+                      </button>
+                      <button type="button" onClick={() => void clearWywa(n)} aria-label={`${checked ? "Mark unread" : "Mark read"}: ${n.title}`}
+                        className={`size-3 shrink-0 rounded-full border ${checked ? "border-unread bg-unread" : "border-border bg-transparent"}`} />
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

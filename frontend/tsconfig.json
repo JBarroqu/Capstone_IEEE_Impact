@@ -13,7 +13,8 @@
     "noEmit": true,
     "types": ["vite/client", "vitest/globals", "node"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"] },
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src", "vite.config.ts"]
 }
