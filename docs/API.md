@@ -69,6 +69,7 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 | GET | `/evidence/{id}` | One evidence item: rubric criteria, feedback, status, points |
 | POST | `/evidence/{id}/revise` | Submit a revision, which creates a new row with `revision_of` |
 | POST | `/evidence/{id}/retry-scoring` | Only when the status is `ai_error` |
+| POST | `/evidence/{id}/add-to-profile` | Feature validated evidence as a verified contribution (D-45, when `CONTRIBUTION_FROM_EVIDENCE` isn't off) |
 | GET | `/evidence/{id}/file-url` | 60 s signed link. Allowed for the owner, or the accepted buddy on that move. |
 | GET | `/score-events` | Your points ledger, newest first |
 | GET | `/integrations/growth-state` | Contract mirror |
@@ -77,7 +78,7 @@ The shape of each contract returned below is in `CONTRACTS.md`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/users/lookup?handle=` or `?email=` | Exact match only (D-35). Returns `{handle, displayName}`. |
+| GET | `/users/lookup?handle=` or `?email=` | `{users:[{handle, displayName}]}`. Exact match, or with `BUDDY_DISCOVERY=search` up to 20 handles containing the text (D-35). Emails always match exactly. |
 | POST | `/invitations` | `{selectedMoveId, buddy: handle or email, role: reviewer\|tester, message?}` |
 | GET | `/invitations?box=received\|sent` | Invitations with move title and status |
 | POST | `/invitations/{id}/accept` · `/decline` · `/revoke` | State changes. Accept and decline are the invitee's; revoke is the owner's. |

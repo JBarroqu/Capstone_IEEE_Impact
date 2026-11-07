@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { Link } from "react-router";
-import { Progress, Tag } from "@/components/ui";
+import { Button, Progress, Tag } from "@/components/ui";
+import { post } from "@/lib/api";
+import { useConfig } from "@/lib/config";
 import { ago, pts, STATUS_LABEL } from "@/lib/format";
 import type { Evidence } from "@/lib/types";
 
@@ -14,6 +17,22 @@ export function RubricBars({ criteria }: { criteria: Record<string, number> }) {
           <Progress value={criteria[k]} label={k} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/** D-45 suggest: validated evidence is offered as a verified contribution on the owner's profile. onProfile is only
+    present in the owner's own evidence list, so buddies never see the offer. */
+function AddToProfile({ e }: { e: Evidence }) {
+  const { policy } = useConfig();
+  const [added, setAdded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (e.status !== "validated" || e.onProfile !== false || policy("CONTRIBUTION_FROM_EVIDENCE") !== "suggest") return null;
+  if (added) return <p className="text-sm text-growth">Added to your profile as a verified contribution.</p>;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg bg-growth-bg p-3 text-sm">
+      <span className="flex-1 text-text">Feature this on your profile as a verified contribution?</span>
+      <Button kind="secondary" busy={busy} onClick={async () => { setBusy(true); try { await post(`/api/v1/evidence/${e.id}/add-to-profile`); setAdded(true); } finally { setBusy(false); } }}>Add to profile</Button>
     </div>
   );
 }
@@ -36,6 +55,7 @@ export function EvidenceCard({ e, link = true }: { e: Evidence; link?: boolean }
         <RubricBars criteria={e.aiCriteria} />
         {e.aiFeedback && <p className="whitespace-pre-wrap rounded-lg bg-subpanel p-3 text-sm text-text">{e.aiFeedback}</p>}
       </>}
+      <AddToProfile e={e} />
       {link && <Link to={`/growth/evidence/${e.id}`} className="self-start text-sm font-semibold text-primary hover:opacity-60">Open</Link>}
     </div>
   );

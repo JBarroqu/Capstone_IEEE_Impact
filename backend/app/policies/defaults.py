@@ -99,7 +99,8 @@ POLICIES: tuple[PolicyDef, ...] = (
     P("REINVITE_AFTER_DECLINE", "D-33", "social", "Michael Hawes", "bool", False,
       "The same person can be invited again to a move after declining."),
     P("BUDDY_DISCOVERY", "D-35", "social", "Michael Hawes", "choice", "exact",
-      "Find buddies by exact handle/email, or by handle prefix search (original).", ("exact", "prefix"), public=True),
+      "Find buddies by typing the exact handle or email, or search (mike-branch original): results appear as you "
+      "type, matching anywhere in the handle, up to 20, each with an Invite button.", ("exact", "search"), public=True),
     P("REVIEWER_EARNS", "D-37", "social", "Michael Hawes", "choice", "none",
       "Reviewing someone else earns nothing, or effort points.", ("none", "effort"), public=True),
     # Module 5: Opportunity & Event Return (JBarroqu)
@@ -111,6 +112,9 @@ POLICIES: tuple[PolicyDef, ...] = (
     P("WYWA_MODE", "D-39", "feed", "JBarroqu", "choice", "since_last_visit",
       "While You Were Away shows items since the previous visit, or from the last 7 days.",
       ("since_last_visit", "days:7"), public=True),
+    P("OPPORTUNITY_CHIP", "D-50", "feed", "JBarroqu", "choice", "enablement_events",
+      "Categories the Opportunity chip on Home shows: Enablement and Events, or Events and Pro (Event_Ecosystem original).",
+      ("enablement_events", "events_pro")),
     P("EVENT_SOURCES", "D-41", "feed", "JBarroqu", "choice", "none", "External event detection (not built yet).",
       ("none",), public=True),
 )

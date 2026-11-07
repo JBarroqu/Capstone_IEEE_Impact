@@ -63,6 +63,16 @@ async def get_evidence(evidence_id: str, user: CurrentUser = User):
     return err("not found", 404)
 
 
+@router.post("/evidence/{evidence_id}/add-to-profile")
+async def add_to_profile(evidence_id: str, user: CurrentUser = User):
+    """D-45: feature validated evidence on the profile as a verified contribution."""
+    try:
+        await service.add_to_profile(user.id, evidence_id)
+    except service.GrowthError as e:
+        return err(str(e), e.status)
+    return ok()
+
+
 @router.post("/evidence/{evidence_id}/retry-scoring")
 async def retry(evidence_id: str, user: CurrentUser = User):
     try:

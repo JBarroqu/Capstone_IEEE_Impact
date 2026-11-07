@@ -13,10 +13,19 @@ Needs Docker (for local Supabase), the Supabase CLI (`brew install supabase/tap/
 ```
 npm run setup          # node deps (root + frontend) and backend/.venv
 npm run db:start       # local Supabase: Postgres, Auth, Storage, Mailpit (magic-link emails at http://127.0.0.1:54324)
+                       # and writes its URLs and keys into .env.local for you (rerun alone: npm run env:local)
 npm run db:reset       # apply supabase/migrations
+cp .env.example .env   # then fill in the two values below
 ```
-Put the values `supabase start` prints into `.env.local` (git-ignored; see `.env.example`), and your `GEMINI_API_KEY`
-and `ADMIN_PASSWORD` into `.env`. Then, in two terminals:
+You type only two values, in `.env`:
+
+| Variable | Where to get it | Needed for |
+|---|---|---|
+| `GEMINI_API_KEY` | free key at https://aistudio.google.com/apikey | generating moves, questions, resume drafts and evidence scores |
+| `ADMIN_PASSWORD` | anything 8+ characters | the `/admin` page (it stays locked otherwise) |
+
+Leave the Supabase lines in `.env` as they are; `.env.local` (git-ignored, generated) loads first and overrides them.
+Every other setting in `.env.example` is optional. Then, in two terminals:
 ```
 npm run api            # FastAPI on :8000 (API docs at /docs)
 npm run dev            # React on http://localhost:5173 (proxies /api to :8000)

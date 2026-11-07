@@ -53,7 +53,7 @@ In-memory token buckets (T-11), per IP, per user and global. The global limits h
 | admin login | 10 per 15 min | | |
 
 - **Client IP** is the rightmost `X-Forwarded-For` entry added by Render's proxy (`PROXY_HOPS`, `TRUST_PROXY`). Entries a client adds itself are ignored. Check it with `/api/admin/client-ip` after deploying.
-- **Username enumeration:** buddy lookup is exact-match only (D-35).
+- **Username enumeration:** buddy lookup is exact-match only by default (D-35). `BUDDY_DISCOVERY=search` brings back mike-branch's search (up to 20 handles containing the text); it stays rate-limited per user and IP, and emails always match exactly.
 
 ## Headers
 - **Pages and API** send:

@@ -8,30 +8,31 @@ import { AuthCard, GoogleButton, OrLine } from "./AuthCard";
 
 export default function SignUp() {
   const { session } = useAuth();
-  const { config } = useConfig();
+  const { config, policy } = useConfig();
+  const after = policy("ONBOARDING_REQUIRED") === false ? "/" : "/onboarding";  // D-01
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
-  if (session) return <Navigate to="/onboarding" replace />;
+  if (session) return <Navigate to={after} replace />;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) { setError("Use at least 8 characters."); return; }
     setBusy(true); setError(null);
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding` } });
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${after}` } });
     setBusy(false);
     if (error) setError(error.message);
-    else if (data.session) nav("/onboarding");
+    else if (data.session) nav(after);
     else setConfirm(true);
   };
 
   if (confirm) return <AuthCard title="Confirm your email" sub={<>We sent a link to <strong>{email}</strong>. Open it to finish signing up.</>}><span /></AuthCard>;
   return (
     <AuthCard title="Create your account" sub="Then tell us where you are now, and get your first move.">
-      <GoogleButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback?next=/onboarding` } })} />
+      <GoogleButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback?next=${after}` } })} />
       <OrLine />
       <form className="flex flex-col gap-4" onSubmit={submit}>
         <Field label="Email"><Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>

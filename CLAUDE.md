@@ -43,7 +43,7 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
   - Publish domain events inside `db.tx()`; subscribers run after commit.
   - Update a selected move's status *before* publishing the growth event that depends on it.
 - **One API worker** (T-11): model health, rate limits and background jobs are in memory.
-- **Never read `.env` contents.** Local Supabase values go in the git-ignored `.env.local`, which loads first.
+- **Never read `.env` contents.** Local Supabase values go in the git-ignored `.env.local`, which loads first; `npm run db:start` (or `npm run env:local`) generates it from `supabase status`.
 
 ## Layout
 **`backend/app/`**

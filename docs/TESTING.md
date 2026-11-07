@@ -39,3 +39,9 @@ npm run e2e:serve      # separate terminal: build, then the API with the fake mo
 npm run e2e            # two users through the whole product; add -- --shots=DIR for screenshots
 npm run llm:check      # live models
 ```
+The browser test reads the live policies and follows whichever behaviour is on. Run it a second time with the owners'
+original choices, so each alternative in `MODULE_OWNER_DECISIONS.md` is checked in the browser, not only in pytest:
+```
+BUDDY_DISCOVERY=search SURVEY_SCREENS=on MOVE_TAGS_SOURCE=user ONBOARDING_REQUIRED=false OPPORTUNITY_CHIP=events_pro npm run e2e:serve
+npm run e2e
+```

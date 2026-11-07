@@ -53,7 +53,6 @@ It publishes `MoveSelected` and `NextMoveReady`.
 ## Policies that affect this module
 - `MOVES_PER_WISH` (D-02)
 - `NEXT_MOVE_GATE` (D-03)
-- `OPTIONS_PER_STEP` (D-04)
 - `MAX_STEPS_PER_WISH` (D-05)
 - `MAX_ACTIVE_WISHES` (D-53)
 - `PROFILE_IN_MOVES` (D-06)
@@ -61,7 +60,7 @@ It publishes `MoveSelected` and `NextMoveReady`.
 - `MOVE_TAGS_SOURCE` (D-11)
 - `SKILL_MODEL` (D-08)
 - `SURVEY_SCREENS` (D-46)
-- `LLM_PROVIDER` (T-10)
+- the `LLM_PROVIDER` environment variable picks the model chain (T-10); it is configuration, not a policy
 
 ## Tests
 - The Wish Engine's model chain, prompt, analytics and reliability tests are ported.

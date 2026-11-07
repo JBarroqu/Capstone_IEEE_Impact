@@ -1,7 +1,7 @@
 /* Onboarding (D-01): a guided stepper, with an optional resume import that only fills a draft (D-42, D-43). */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button, ErrorNote, Panel, SubPanel } from "@/components/ui";
+import { Button, ErrorNote, Panel, Skeleton, SubPanel } from "@/components/ui";
 import { ApiError, get, post, put, upload } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useConfig } from "@/lib/config";
@@ -65,11 +65,13 @@ export default function Onboarding() {
   const [importId, setImportId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
 
+  // The form shows only once the saved profile is in, so nothing typed before it arrives gets replaced.
   useEffect(() => {
-    get<{ profile: ProfessionalState }>("/api/v1/profile").then((r) => setD((x) => ({ ...fromState(r.profile), handle: r.profile.handle ?? x.handle })))
-      .catch(() => {});
+    get<{ profile: ProfessionalState }>("/api/v1/profile").then((r) => setD(fromState(r.profile)))
+      .catch(() => {}).finally(() => setLoaded(true));
   }, []);
   useEffect(() => { if (me?.onboarded) nav("/", { replace: true }); }, [me, nav]);
 
@@ -99,6 +101,7 @@ export default function Onboarding() {
         ))}
       </ol>
       <Panel>
+        {!loaded ? <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading your profile"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-2/3" /></div> : <>
         {step === 0 && <><ResumeImport onDraft={(imp, id) => { setD((x) => mergeImport(x, imp)); setImportId(id); }} /><BasicsFields d={d} set={set} /></>}
         {step === 1 && <BackgroundFields d={d} set={set} />}
         {step === 2 && <SkillsFields d={d} set={set} />}
@@ -122,6 +125,7 @@ export default function Onboarding() {
             ? <Button onClick={() => setStep((s) => s + 1)}>Next</Button>
             : <Button busy={busy} onClick={finish}>Finish and go to Home</Button>}
         </div>
+        </>}
       </Panel>
     </div>
   );

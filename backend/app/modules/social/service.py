@@ -36,8 +36,8 @@ def _growth():
 
 
 async def lookup(user_id: str, handle: str | None, email: str | None) -> list[dict]:
-    prefix = policies.get("BUDDY_DISCOVERY") == "prefix"
-    found = await _profile().find_user(handle=handle, email=email, prefix=prefix and bool(handle))
+    search = policies.get("BUDDY_DISCOVERY") == "search"
+    found = await _profile().find_user(handle=handle, email=email, search=search and bool(handle))
     return [{"handle": f["handle"], "displayName": f["displayName"]} for f in found if f["userId"] != user_id]
 
 
