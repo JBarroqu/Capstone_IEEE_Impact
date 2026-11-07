@@ -61,7 +61,10 @@ npm run db:reset       # apply supabase/migrations
 npm run api            # FastAPI on :8000
 npm run dev            # Vite on :5173, proxies /api to :8000
 ```
-Put the keys `supabase start` prints in a git-ignored `.env.local` (it loads before `.env`). Local auth settings
+`npm run db:start` also runs `scripts/env-local.mjs`, which reads `supabase status` and writes `DATABASE_URL`,
+`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` into the git-ignored
+`.env.local` (it loads before `.env`; other keys in it are kept). Run `npm run env:local` to regenerate it. You add only
+`GEMINI_API_KEY` and `ADMIN_PASSWORD` to `.env` yourself. Local auth settings
 (redirect URLs, Google provider switched off) are in `supabase/config.toml`; restart Supabase after editing it.
 
 ## Google sign-in
