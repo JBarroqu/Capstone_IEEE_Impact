@@ -23,6 +23,7 @@
     "e2e": "tsx e2e/full-loop.ts"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "playwright-core": "^1.63.0",
     "tsx": "^4.23.15"
   },
