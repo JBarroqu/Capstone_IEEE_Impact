@@ -1,6 +1,6 @@
 """Module 2: Wish & Next Move (owner Waleed). docs/modules/wish.md. The Wish Engine's flow, keyed by the signed-in user:
-wish -> classify -> follow-up questions -> options (model-generated, D-29) -> select -> SelectedMove v0.1. One move at a
-time (D-02); the next step opens per NEXT_MOVE_GATE (D-03); prompts see the profile (D-06) and earlier outcomes (D-07)."""
+wish -> classify -> follow-up questions -> options (model-generated, D-29) -> select -> SelectedMove v0.1. A wish can
+carry a sequence of moves (D-02); the next step opens per NEXT_MOVE_GATE (D-03); prompts see the profile (D-06) and earlier outcomes (D-07)."""
 import logging
 import time
 from datetime import datetime, timezone

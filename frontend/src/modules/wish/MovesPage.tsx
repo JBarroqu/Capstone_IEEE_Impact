@@ -13,7 +13,7 @@ export default function MovesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageTitle sub="Each wish gets one move at a time. Do it, show what you made, and the next move builds on it.">Moves</PageTitle>
+        <PageTitle sub="A wish can grow into a sequence of moves. Do one, show what you made, and keep building the path.">Moves</PageTitle>
         <ButtonLink to="/moves/new">Start a wish</ButtonLink>
       </div>
       <Panel>

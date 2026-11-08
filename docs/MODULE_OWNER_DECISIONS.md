@@ -84,13 +84,14 @@ These come from merging five separate apps into one. They aren't up for per-modu
 
 ## Module 2: Wish & Next Move (Waleed)
 
-### D-02, D-03 One move at a time, gated on validation
+### D-02, D-03 Multi-move wish path, gated on validation
 - **Before:** quick mode picked one move and ended in a rating survey; the full mode picked 3 moves up front.
 - **Now:**
-  1. You pick one move, do it, and submit evidence.
-  2. The next move for that wish opens once that evidence is **validated**.
-  3. The next move is generated with that result in mind.
-- **Settings:** `MOVES_PER_WISH` = **1** | 3 · `NEXT_MOVE_GATE` = **validated** | ai_scored | submitted | none
+  1. You can start a wish and pick a multi-move path.
+  2. Each move is completed and submitted in turn.
+  3. The next move for that wish opens once the current one is **validated**.
+  4. The next move is generated with that result in mind.
+- **Settings:** `MOVES_PER_WISH` = 1 | **3** · `NEXT_MOVE_GATE` = **validated** | ai_scored | submitted | none
 
 ### D-07 The next move knows how the last one went (new)
 - **Now:** from move 2, the prompt includes the previous move's rubric score, a short summary of its feedback, and the buddy's comment.

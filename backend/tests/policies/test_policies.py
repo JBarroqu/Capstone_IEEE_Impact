@@ -27,6 +27,11 @@ def test_every_policy_has_a_decision_id_and_owner():
         assert re.fullmatch(r"D-\d\d", p.decision) and p.owner and p.description
 
 
+def test_default_wish_flow_allows_multiple_moves():
+    assert loader.get("MOVES_PER_WISH") == 3
+    assert loader.get("MAX_STEPS_PER_WISH") >= 3
+
+
 @pytest.mark.parametrize("p", POLICIES, ids=lambda p: p.key)
 def test_default_is_valid(p):
     assert loader.coerce(p, p.default) == p.default
