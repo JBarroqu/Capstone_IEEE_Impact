@@ -10,28 +10,6 @@ import { ago, pts, STATUS_LABEL } from "@/lib/format";
 import type { FeedItem, Home } from "@/lib/types";
 
 const CHIPS = ["People", "Opportunity", "Impact", "Growth", "Enablement", "Social"];
-const WYWA_STORAGE_KEY = "wywa-cleared";
-
-function loadClearedWywa() {
-  try {
-    const storage = globalThis.localStorage;
-    const raw = storage ? storage.getItem(WYWA_STORAGE_KEY) : null;
-    if (!raw) return new Set<string>();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
-  } catch {
-    return new Set<string>();
-  }
-}
-
-function saveClearedWywa(ids: Set<string>) {
-  try {
-    const storage = globalThis.localStorage;
-    if (storage) storage.setItem(WYWA_STORAGE_KEY, JSON.stringify([...ids]));
-  } catch {
-    // the list can still show; this is just a convenience persistence layer.
-  }
-}
 
 function FeedRow({ n, onToggle, onOpen }: { n: FeedItem; onToggle: () => void; onOpen: () => void }) {
   const read = !!n.readAt;
@@ -58,7 +36,6 @@ export default function HomePage() {
   const [unread, setUnread] = useState(0);
   const [chip, setChip] = useState("");
   const { me } = useAuth();
-  const [clearedWywa, setClearedWywa] = useState<Set<string>>(() => loadClearedWywa());
 
   const loadFeed = useCallback(() => {
     const qs = new URLSearchParams();
@@ -67,46 +44,33 @@ export default function HomePage() {
     get<{ items: FeedItem[]; unread: number }>(`/api/v1/feed?${qs}`).then((r) => { setItems(r.items); setUnread(r.unread); });
   }, [chip, q]);
   useEffect(() => { get<Home>("/api/v1/home").then(setHome); }, []);
-  useEffect(() => { saveClearedWywa(clearedWywa); }, [clearedWywa]);
   useEffect(loadFeed, [loadFeed]);
   useEffect(() => { if (location.hash === "#notifications") document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth" }); }, [items]);
 
   const toggle = async (n: FeedItem, opts: { updateUnread?: boolean } = {}) => {
     const read = !n.readAt;
+    const readAt = read ? new Date().toISOString() : null;
     const updateUnread = opts.updateUnread ?? items?.some((x) => x.id === n.id) ?? false;
-    setItems((xs) => xs?.map((x) => (x.id === n.id ? { ...x, readAt: read ? new Date().toISOString() : null } : x)) ?? null);
+    setItems((xs) => xs?.map((x) => (x.id === n.id ? { ...x, readAt } : x)) ?? null);
+    setHome((curr) => curr ? {
+      ...curr,
+      eventContext: {
+        ...curr.eventContext,
+        whileYouWereAway: {
+          ...curr.eventContext.whileYouWereAway,
+          items: curr.eventContext.whileYouWereAway.items.map((x) => x.id === n.id ? { ...x, readAt } : x),
+        },
+      },
+    } : curr);
     if (updateUnread) setUnread((u) => u + (read ? -1 : 1));
     await post(`/api/v1/feed/${n.id}/read`, { read });
   };
-  const clearWywa = async (n: FeedItem) => {
-    setClearedWywa((prev) => {
-      const next = new Set(prev);
-      next.add(n.id);
-      saveClearedWywa(next);
-      return next;
-    });
-    setHome((curr) => {
-      if (!curr) return curr;
-      const remaining = curr.eventContext.whileYouWereAway.items.filter((x) => x.id !== n.id);
-      return {
-        ...curr,
-        eventContext: {
-          ...curr.eventContext,
-          whileYouWereAway: {
-            ...curr.eventContext.whileYouWereAway,
-            count: Math.max(0, curr.eventContext.whileYouWereAway.count - 1),
-            items: remaining,
-          },
-        },
-      };
-    });
-    await post(`/api/v1/feed/${n.id}/read`, { read: false });
-  };
+  const clearWywa = (n: FeedItem) => toggle(n);
   const open = async (n: FeedItem) => { if (!n.readAt) await toggle(n, { updateUnread: items?.some((x) => x.id === n.id) ?? false }); if (n.link) nav(n.link); };
 
   const best = home?.bestNextMove;
   const wywa = home?.eventContext.whileYouWereAway;
-  const visibleWywa = wywa ? wywa.items.filter((n) => !clearedWywa.has(n.id)) : [];
+  const visibleWywa = wywa ? wywa.items.filter((n) => !n.readAt) : [];
   return (
     <div className="grid gap-8 lg:grid-cols-[424px_minmax(0,738px)]">
       <aside className="rounded-xl border border-border bg-panel px-4 pb-12 pt-[31px] lg:min-h-[825px]">
@@ -147,8 +111,8 @@ export default function HomePage() {
                     <button type="button" onClick={() => open(n)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-white p-3 text-left text-sm hover:shadow-md">
                       <CategoryIcon category={n.category} size={32} /><span className="min-w-0 flex-1 truncate font-semibold">{n.title}</span>
                     </button>
-                    <button type="button" onClick={() => void clearWywa(n)} aria-label={`Mark unread: ${n.title}`}
-                      className="size-3 shrink-0 rounded-full border border-unread bg-unread" />
+                    <button type="button" onClick={() => void clearWywa(n)} aria-label={`${n.readAt ? "Mark unread" : "Mark read"}: ${n.title}`}
+                      className={`size-3 shrink-0 rounded-full border ${n.readAt ? "border-border bg-transparent" : "border-unread bg-unread"}`} />
                   </li>
                 ))}
               </ul>
