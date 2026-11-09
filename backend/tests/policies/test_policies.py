@@ -108,7 +108,7 @@ def test_owner_doc_choices_match_code():
             continue
         rest = re.split(r" · ", rest)[0]
         named = [re.sub(r"\s*\(.*$", "", x).strip().strip("*").strip() for x in rest.split(" | ")]
-        bold = re.match(r"\*\*(.+?)\*\*", rest)
+        bold = re.search(r"\*\*(.+?)\*\*", rest)
         if set(named) != {str(c) for c in p.choices} or not bold or bold.group(1) != str(p.default):
             bad.append(f"{key}: doc {named}, code {list(p.choices)} default {p.default}")
     assert not bad, bad
