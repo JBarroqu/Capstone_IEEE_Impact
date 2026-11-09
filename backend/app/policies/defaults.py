@@ -46,8 +46,8 @@ POLICIES: tuple[PolicyDef, ...] = (
     # Module 2: Wish & Next Move (Waleed)
     P("MOVES_PER_WISH", "D-02", "wish", "Waleed", "choice", 1,
       "1 = one move at a time, each generated after the last; 3 = pick a 3-move path up front.", (1, 3), public=True),
-    P("NEXT_MOVE_GATE", "D-03", "wish", "Waleed", "choice", "validated",
-      "When the next move for a wish opens.", ("validated", "ai_scored", "submitted", "none"), public=True),
+    P("NEXT_MOVE_GATE", "D-03", "wish", "Waleed", "choice", "submitted",
+      "When the next move for a wish opens. Validation only decides credit, so by default submitting is enough.", ("validated", "ai_scored", "submitted", "none"), public=True),
     P("MAX_STEPS_PER_WISH", "D-05", "wish", "Waleed", "int", 5, "Most moves per wish.", min=1, max=5, public=True),
     P("NEXT_MOVE_CONTEXT", "D-07", "wish", "Waleed", "choice", "outcomes",
       "The next move's prompt includes how the previous move went.", ("outcomes", "off")),

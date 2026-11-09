@@ -75,7 +75,7 @@ async def test_full_loop(api, users):
     allowed = {"sql", "excel", "python", "data_viz", "statistics"}
     assert all(m["skillId"] in allowed and m["activityType"] and m["difficulty"] for m in moves)
     assert sm["move"]["skillId"] in allowed and sm["status"] == "active" and sm["schemaVersion"] == "0.1"
-    # One move at a time, gated on validation (D-02, D-03)
+    # One move at a time: step 2 stays closed until move 1 has evidence (D-02, D-03 submitted)
     assert (await api.post(f"/api/v1/wishes/{wid}/options", json={"step": 2}, headers=a["h"])).status_code == 409
 
     # Module 3: evidence -> rubric -> pending points (D-13 ai_then_buddy)
@@ -84,6 +84,10 @@ async def test_full_loop(api, users):
     assert set(ev["aiCriteria"]) == {"relevance", "completeness", "quality", "clarity"}
     g = (await api.get("/api/v1/growth", headers=a["h"])).json()["growth"]
     assert g["totals"]["validated"] == 0 and g["totals"]["pending"] > 0 and g["totals"]["effortRaw"] == 3
+    # Validation decides credit, not the path: step 2 is open before any buddy has reviewed (D-03)
+    assert (await api.get(f"/api/v1/wishes/{wid}", headers=a["h"])).json()["wish"]["nextOpen"] is True
+    with loader.override(NEXT_MOVE_GATE="validated"):
+        assert (await api.get(f"/api/v1/wishes/{wid}", headers=a["h"])).json()["wish"]["nextOpen"] is False
 
     # Module 4: invite by handle, accept, review queue, rating + confirm -> SocialEvidence -> final points
     assert (await api.get(f"/api/v1/evidence/{ev['id']}", headers=b["h"])).status_code == 404  # not a buddy yet
@@ -126,7 +130,7 @@ async def test_full_loop(api, users):
     assert home["bestNextMove"]["kind"] == "next_move_ready"
     assert home["growthSummary"]["impact"] > 0
 
-    # The loop closes: step 2 opens now that move 1 is validated
+    # The loop closes: step 2's options now include move 1's validated outcome
     moves2, sm2 = await pick(api, a, wid, step=2, position=0)
     assert sm2["move"]["step"] == 2
 

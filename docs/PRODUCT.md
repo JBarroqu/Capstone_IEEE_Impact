@@ -48,8 +48,8 @@ The audience is senior ASU computer science students.
    - That becomes social evidence, and Sam's points are finalised with the rubric + reviewer formula (D-13, D-15).
    - The feed shows "Points validated" (Impact), and with enough points "Familiar in SQL" (Growth) and "Study group unlocked" (Enablement).
 7. **Next move.**
-   - The best next move card now says "Next move ready" (D-03).
-   - Sam's second set of options knows how the first went (D-07): the score, the rubric's note, Priya's comment.
+   - Move 2 opened as soon as Sam submitted evidence (D-03); he never had to wait for Priya. Her review decides the points, not the path.
+   - Sam's second set of options knows how the first went so far (D-07): the score, the rubric's note, and Priya's comment once she has reviewed.
 8. **Return (Module 5).** A few days later Sam comes back. "While You Were Away" lists what happened since the last visit (D-39).
 
 If Priya had never reviewed, the evidence would finalise on the rubric alone after 7 days, marked "not peer-confirmed" (D-18).

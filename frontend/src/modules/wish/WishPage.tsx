@@ -148,7 +148,7 @@ export default function WishPage() {
             <div className="rounded-xl border border-border bg-white p-5"><Pick key={wish.nextStep} wishId={wish.id} step={wish.nextStep} onLocked={() => void load()} onShown={onShown} /></div>
           )}
           {wish.status === "active" && !wish.nextOpen && last && moves.length < maxSteps && (
-            <p className="text-sm text-secondary">{GATE_TEXT[policy("NEXT_MOVE_GATE") ?? "validated"]}</p>
+            <p className="text-sm text-secondary">{GATE_TEXT[policy("NEXT_MOVE_GATE") ?? "submitted"]}</p>
           )}
           {moves.length >= maxSteps && <p className="text-sm text-secondary">That's the full path for this wish.</p>}
         </div>

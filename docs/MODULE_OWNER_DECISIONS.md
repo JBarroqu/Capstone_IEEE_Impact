@@ -84,17 +84,20 @@ These come from merging five separate apps into one. They aren't up for per-modu
 
 ## Module 2: Wish & Next Move (Waleed)
 
-### D-02, D-03 One move at a time, gated on validation
+### D-02, D-03 One move at a time; the next opens once you submit
 - **Before:** quick mode picked one move and ended in a rating survey; the full mode picked 3 moves up front.
 - **Now:** a wish still grows into a path of up to `MAX_STEPS_PER_WISH` moves, but they're generated one at a time:
   1. You pick one move, do it, and submit evidence.
-  2. The next move for that wish opens once that evidence is **validated**.
-  3. The next move is generated with that result in mind (D-07).
+  2. The next move for that wish opens as soon as that evidence is **submitted**. You don't wait for scoring or a buddy.
+  3. The next move is generated with what's known about the last one so far (D-07).
 - **Why one at a time:**
   - If a student drops a move, right away or halfway through, only that one move is regenerated, not a whole 3-move path.
   - Plans change. Move 2 should reflect how move 1 actually went and how the student felt finishing it, which a path
     picked up front can't know.
-- **Settings:** `MOVES_PER_WISH` = **1** | 3 · `NEXT_MOVE_GATE` = **validated** | ai_scored | submitted | none
+- **Why the next move doesn't wait for validation:** validation decides whether a move counts toward the profile
+  (points, tiers, unlocks). It isn't meant to stop a student from moving on, so a slow or missing buddy never blocks the
+  path. Points still finalise only on validation (D-13).
+- **Settings:** `MOVES_PER_WISH` = **1** | 3 · `NEXT_MOVE_GATE` = validated | ai_scored | **submitted** | none
 
 ### D-07 The next move knows how the last one went (new)
 - **Now:** from move 2, the prompt includes the previous move's rubric score, a short summary of its feedback, and the buddy's comment.
@@ -315,3 +318,4 @@ The app runs with the default in the last column until an owner answers.
 | 2026-11-05 | all | Created; all entries waiting for owner review | Waleed |
 | 2026-11-06 | D-35, D-50, D-46, D-11, D-45, D-01 | Each alternative now restores the original behaviour end to end, not just in the backend: buddy search as you type (`search` replaces `prefix`, which matched differently from the original), the original Opportunity chip, the full survey, user-chosen tags, the "Add to profile" offer and the Home reminder. Defaults unchanged. | Waleed |
 | 2026-11-09 | D-02 | `MOVES_PER_WISH` back to 1 after it was set to 3 on 2026-11-07. A wish holds several moves either way; 1 generates each after the last, so a dropped move costs one regeneration, and the next move follows how the last one went. | Waleed |
+| 2026-11-09 | D-03 | `NEXT_MOVE_GATE` default from validated to submitted: the next move opens once evidence is submitted. Validation still decides points, tiers and unlocks; it no longer holds up the path. | Waleed |
