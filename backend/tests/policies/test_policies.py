@@ -27,8 +27,10 @@ def test_every_policy_has_a_decision_id_and_owner():
         assert re.fullmatch(r"D-\d\d", p.decision) and p.owner and p.description
 
 
-def test_default_wish_flow_allows_multiple_moves():
-    assert loader.get("MOVES_PER_WISH") == 3
+def test_default_wish_flow_is_one_move_at_a_time_with_several_per_wish():
+    """D-02: moves are generated one at a time (so a dropped move costs one regeneration and the next follows how the
+    last went), and a wish still holds several moves."""
+    assert loader.get("MOVES_PER_WISH") == 1
     assert loader.get("MAX_STEPS_PER_WISH") >= 3
 
 

@@ -44,8 +44,8 @@ POLICIES: tuple[PolicyDef, ...] = (
       "What of the profile the move generator sees: summary (no name, bio, school), full, or off.",
       ("summary", "full", "off")),
     # Module 2: Wish & Next Move (Waleed)
-    P("MOVES_PER_WISH", "D-02", "wish", "Waleed", "choice", 3,
-      "1 = one move at a time; 3 = pick a multi-move path up front.", (1, 3), public=True),
+    P("MOVES_PER_WISH", "D-02", "wish", "Waleed", "choice", 1,
+      "1 = one move at a time, each generated after the last; 3 = pick a 3-move path up front.", (1, 3), public=True),
     P("NEXT_MOVE_GATE", "D-03", "wish", "Waleed", "choice", "validated",
       "When the next move for a wish opens.", ("validated", "ai_scored", "submitted", "none"), public=True),
     P("MAX_STEPS_PER_WISH", "D-05", "wish", "Waleed", "int", 5, "Most moves per wish.", min=1, max=5, public=True),
