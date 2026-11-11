@@ -10,7 +10,7 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
 ## Read first
 - `docs/README.md`: index and module owners.
 - `docs/MODULE_OWNER_DECISIONS.md`: only the places where the integrated app differs from what a module owner built, or adds new logic, each with its policy setting. Owners review it. **A new behaviour change that touches another module's work gets an entry here.**
-- `docs/ARCHITECTURE.md`, `CONTRACTS.md`, `DATA_MODEL.md`, `API.md`, `SCORING.md`, `DESIGN.md`, `SECURITY.md`, `TESTING.md`, `DEPLOY.md`.
+- `docs/ARCHITECTURE.md`, `CONTRACTS.md`, `DATA_MODEL.md`, `API.md`, `SCORING.md`, `DESIGN.md`, `SECURITY.md`, `TESTING.md`, `DEPLOY.md`, `CI_CD.md`.
 - `docs/modules/*.md`: what was kept, changed and dropped from each branch.
 
 ## Rules
@@ -18,6 +18,10 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
   - No `Co-Authored-By` or "Generated with Claude Code" lines in commits or PRs; plain messages.
   - Commit after each stage. Never push without being asked.
   - Remote `capstone` = `JBarroqu/Capstone_IEEE_Impact`, branch `integration`.
+- **CI must pass** (`docs/CI_CD.md`)
+  - Checks: "CI passed" and "Security passed". Staging deploys from `integration`, production from `main` after approval; only commits that pass deploy.
+  - Before pushing: `npm run lint && npm test`. Pin new Actions to a full commit SHA with the version in a comment.
+  - Runtime Python packages go in `backend/requirements.txt`; test and CI tools in `requirements-dev.txt`.
 - **Every switchable decision is a policy**
   - Defaults live in `backend/app/policies/defaults.py`. Behaviour lives in the strategy classes in `policies/strategies.py`, whose docstrings start with the decision ID. Read values with `policies.get("KEY")` or a getter.
   - Never compare policy strings in business code; call the getter.
@@ -81,6 +85,8 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
   - `npm run api` with `npm run dev` (:5173), or `npm run build && npm start` (:8000)
 - **Test:**
   - `npm test`: vitest, tsc, pytest, import-linter. The integration tests need local Supabase.
+  - `npm run lint`: ESLint and ruff (correctness rules only).
+  - As CI does the browser test: `npm run build && scripts/ci/run-e2e.sh default` (refuses a busy port; `E2E_PORT`).
   - `npm run e2e:serve` then `npm run e2e`
 - **Other:** `npm run llm:check`, `npm run schemas`.
 - **Docker:** `docker build -t impact-app --build-arg VITE_SUPABASE_URL=... --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=... .`
@@ -89,6 +95,8 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
 - **Tests**
   - pytest integration tests run the app in-process (`httpx.ASGITransport` + `lifespan_context`) against local Supabase.
   - They create users through the Supabase Auth API, and delete them afterwards (cascade).
+  - Without Supabase they skip; CI sets `REQUIRE_SUPABASE=1` so that fails instead.
+  - Frontend unit tests get placeholder Supabase values from `vite.config.ts` (`test.env`), never from `.env.local`.
   - Wait for background jobs with `jobs.drain()`.
 - **Sign-in**
   - `supabase-js` exchanges the PKCE code itself (`detectSessionInUrl`). `/auth/callback` must not call `exchangeCodeForSession` again.

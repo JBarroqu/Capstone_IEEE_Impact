@@ -1,0 +1,205 @@
+# CI/CD (docs/CI_CD.md). Every PR and push runs every check; "CI passed" is the one check branch protection needs.
+# A push to integration that passes deploys staging; a push to main that passes deploys production after approval.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, integration]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # PRs: a new push cancels the older run. Branch pushes: every commit gets its own full run (unique group). Deploys
+  # can't go backwards: deploy.yml skips itself when a newer commit is already on the branch.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "22"           # matches the Dockerfile's build stage
+  PYTHON_VERSION: "3.13"       # matches the Dockerfile's runtime
+  SUPABASE_CLI_VERSION: "3.0.0"
+  FORCE_COLOR: "1"
+
+jobs:
+  frontend:
+    name: Frontend (lint, types, unit tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - name: Install
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix frontend ci
+      - name: Lint (ESLint)
+        run: npm --prefix frontend run lint
+      - name: Type-check (app and e2e script)
+        run: |
+          npm --prefix frontend run typecheck
+          frontend/node_modules/.bin/tsc -p e2e/tsconfig.json
+      - name: Unit tests (Vitest, including the copy rules)
+        run: npm --prefix frontend test
+      - name: Production build
+        working-directory: frontend
+        run: npx vite build
+
+  backend:
+    name: Backend (lint, boundaries, unit tests, contracts)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Install
+        working-directory: backend
+        run: python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+      - name: Lint (ruff)
+        working-directory: backend
+        run: .venv/bin/ruff check . --output-format=github
+      - name: Module boundaries (import-linter)
+        working-directory: backend
+        run: .venv/bin/lint-imports
+      - name: Unit, policy and contract tests
+        working-directory: backend
+        run: .venv/bin/pytest -q --ignore=tests/integration
+      - name: Contract schemas are up to date
+        run: |
+          (cd backend && .venv/bin/python scripts/export_schemas.py)
+          if ! git diff --exit-code -- contracts/schemas; then
+            echo "::error::contracts/schemas is out of date. Run 'npm run schemas', bump schemaVersion if a contract changed, and commit."
+            exit 1
+          fi
+
+  integration:
+    name: Integration + e2e (real Supabase, two users in Chrome)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Install
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix frontend ci
+          (cd backend && python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt)
+      - name: Start Supabase (applies every migration to a fresh database)
+        run: scripts/ci/start-supabase.sh
+      - name: Lint the database schema
+        run: supabase db lint --local --fail-on error
+      - name: Integration tests (fail, never skip, if Supabase is down)
+        working-directory: backend
+        env:
+          REQUIRE_SUPABASE: "1"
+        run: .venv/bin/pytest -q tests/integration
+      - name: Build the app for e2e (reads the local Supabase values from .env.local)
+        working-directory: frontend
+        run: npx vite build
+      - name: Check Chrome
+        run: google-chrome --version
+      - name: e2e with default policies
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: scripts/ci/run-e2e.sh default
+      - name: e2e with the module owners' original choices
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: >-
+          scripts/ci/run-e2e.sh owners-originals
+          BUDDY_DISCOVERY=search SURVEY_SCREENS=on MOVE_TAGS_SOURCE=user ONBOARDING_REQUIRED=false OPPORTUNITY_CHIP=events_pro
+      - name: Upload e2e screenshots and server logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-artifacts
+          path: e2e-artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  image:
+    name: Production image (build and smoke-run)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          push: false
+          tags: impact-app:ci
+          build-args: |
+            VITE_SUPABASE_URL=http://127.0.0.1:54321
+            VITE_SUPABASE_PUBLISHABLE_KEY=ci-placeholder
+          cache-from: type=gha,scope=impact-app
+          cache-to: type=gha,scope=impact-app,mode=max
+      - name: Run it the way Render does and smoke-test
+        run: |
+          docker run -d --name app -p 8080:8080 -e PORT=8080 -e PUBLIC_MODE=true -e GIT_COMMIT="$GITHUB_SHA" impact-app:ci
+          trap 'docker logs app > image-server.log 2>&1 || true; docker rm -f app >/dev/null 2>&1 || true' EXIT
+          scripts/ci/wait-for-deploy.sh http://localhost:8080 "$GITHUB_SHA" 2
+      - name: Show server log
+        if: failure()
+        run: cat image-server.log || true
+
+  required:
+    name: CI passed
+    if: always()
+    needs: [frontend, backend, integration, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Every check passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || { echo "::error::a required check did not pass ($r)"; exit 1; }; done
+
+  deploy-staging:
+    name: Deploy staging
+    needs: required
+    if: github.event_name == 'push' && github.ref == 'refs/heads/integration'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+    secrets: inherit
+
+  deploy-production:
+    name: Deploy production
+    needs: required
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+    secrets: inherit

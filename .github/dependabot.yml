@@ -1,0 +1,45 @@
+# Weekly dependency update PRs into `integration` (docs/CI_CD.md). Minor and patch updates are grouped into one PR per
+# ecosystem; majors come one at a time. A release must be 14 days old before it is proposed, so a bad or compromised
+# release has time to be caught upstream. Every PR runs the full CI and Security checks.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: integration
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-and-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: npm
+    directory: /
+    target-branch: integration
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    open-pull-requests-limit: 3
+    groups:
+      root-minor-and-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: pip
+    directory: /backend
+    target-branch: integration
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-and-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: integration
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    groups:
+      actions: { patterns: ["*"] }
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: integration
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }

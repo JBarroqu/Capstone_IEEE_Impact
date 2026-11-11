@@ -1,15 +1,58 @@
-# Render Blueprint (docs/DEPLOY.md): one web service serving the API and the React app on one origin (T-03).
-# Data and sign-in live in a Supabase project you create first; its values are entered when the Blueprint is applied.
+# Render Blueprint (docs/DEPLOY.md, docs/CI_CD.md): two web services, each serving the API and the React app on one
+# origin (T-03). Each pairs with its own Supabase project; their values are entered when the Blueprint is applied.
+# Render's own auto-deploy is off: GitHub Actions deploys a commit only after every check passes and migrations are
+# applied (.github/workflows/deploy.yml calls each service's deploy hook with that exact commit).
+
 services:
   - type: web
-    name: impact-app
+    name: impact-app            # production
     runtime: docker
+    branch: main
+    autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: 0.5c-512mb          # "free" sleeps after 15 min idle (about a minute to wake)
+    plan: 0.5c-512mb
     region: oregon
     healthCheckPath: /api/v1/health
     envVars:
+      - key: DATABASE_URL       # Supabase: Connect > Shared pooler > Session mode (port 5432)
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL  # same as SUPABASE_URL; used at build time for the browser sign-in
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_GOOGLE_AUTH   # "on" once a Google OAuth client is set up in Supabase
+        value: "off"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ADMIN_PASSWORD     # 8+ characters, not change-me
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_MODE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: PROXY_HOPS
+        value: "1"
+
+  - type: web
+    name: impact-app-staging    # staging, from the integration branch
+    runtime: docker
+    branch: integration
+    autoDeployTrigger: "off"
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free                  # sleeps after 15 min idle; the deploy check waits for it to wake
+    region: oregon
+    healthCheckPath: /api/v1/health
+    envVars:                    # same keys as production; values point at the staging Supabase project
       - key: DATABASE_URL       # Supabase: Connect > Shared pooler > Session mode (port 5432)
         sync: false
       - key: SUPABASE_URL

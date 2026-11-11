@@ -1,21 +1,24 @@
 # Testing
 
-`npm test` runs everything that doesn't need a live model or a browser. CI runs it on every push to `integration`.
+`npm test` runs everything that doesn't need a live model or a browser; `npm run lint` runs ESLint and ruff. GitHub Actions
+runs all of it, plus the integration tests against a real Supabase and the browser test twice, on every PR and push
+([CI_CD.md](CI_CD.md)).
 
 ## Layers
 
 | Layer | Tool | Where | Needs |
 |---|---|---|---|
 | Unit | pytest | `backend/tests/unit` | nothing (the fake model, pure functions) |
-| Integration | pytest | `backend/tests/integration` | local Supabase (`npm run db:start`); skipped when it isn't running. The app runs in-process; users are created through Supabase Auth and deleted afterwards. Includes mike-branch's buddy cases (`test_mike_buddy.py`). |
+| Integration | pytest | `backend/tests/integration` | local Supabase (`npm run db:start`); skipped when it isn't running, except with `REQUIRE_SUPABASE=1` (CI), where that fails the run. The app runs in-process; users are created through Supabase Auth and deleted afterwards. Includes mike-branch's buddy cases (`test_mike_buddy.py`). |
 | Contracts | pytest | `backend/tests/contracts` | nothing. Exported JSON Schemas match the committed ones; Python and TypeScript enums match. |
 | Policies | pytest | `backend/tests/policies` | nothing. every key named in `MODULE_OWNER_DECISIONS.md` exists in `defaults.py`; **every choice of every strategy** runs. |
 | Ported | pytest | `backend/tests/ported` | Growth-Validation's scoring tests (v1.0), the SCORING.md worked examples, v1.0 vs v1.1 |
 | Module boundaries | import-linter | `backend/.importlinter` | nothing. Modules import only each other's `api.py`. |
 | Frontend | vitest | `frontend/src/test/*.test.ts` | nothing. Formatting, `track.ts` batching, copy check (no emoji, no "AI"/"smart"). |
-| Types | `tsc --noEmit` | frontend | nothing |
-| End-to-end | playwright-core + Chrome | `e2e/full-loop.ts` | local Supabase + `npm run e2e:serve` (API serving the build with `ENV=test LLM_FAKE=1`) |
-| Live models | `npm run llm:check` | | real API keys; not in CI |
+| Types | `tsc --noEmit` | frontend, `e2e/` | nothing |
+| Lint | ESLint, ruff | `frontend/eslint.config.js`, `backend/ruff.toml` | nothing. Correctness rules only, no style rules. |
+| End-to-end | playwright-core + Chrome | `e2e/full-loop.ts` | local Supabase + `npm run e2e:serve` (API serving the build with `ENV=test LLM_FAKE=1`), or `scripts/ci/run-e2e.sh` as CI does. Chrome from `CHROME_PATH` (default: the macOS app). |
+| Live models | `npm run llm:check` | | real API keys. Never on PRs; GitHub Actions runs it nightly and opens an issue when it fails. |
 
 ## The fake model
 - `backend/app/llm/fake.py` returns schema-valid moves, questions, classifications, resume drafts and rubric scores.
@@ -35,6 +38,7 @@
 ## Commands
 ```
 npm test               # vitest + tsc + pytest (integration tests need npm run db:start) + import-linter
+npm run lint           # ESLint + ruff
 npm run e2e:serve      # separate terminal: build, then the API with the fake model on :8000
 npm run e2e            # two users through the whole product; add -- --shots=DIR for screenshots
 npm run llm:check      # live models
@@ -44,4 +48,10 @@ original choices, so each alternative in `MODULE_OWNER_DECISIONS.md` is checked 
 ```
 BUDDY_DISCOVERY=search SURVEY_SCREENS=on MOVE_TAGS_SOURCE=user ONBOARDING_REQUIRED=false OPPORTUNITY_CHIP=events_pro npm run e2e:serve
 npm run e2e
+```
+
+Frontend unit tests get placeholder Supabase values from `frontend/vite.config.ts` (`test.env`), so they never depend on
+your `.env.local`. To run the browser test exactly as CI does (it refuses a port that is already in use):
+```
+npm run build && scripts/ci/run-e2e.sh default
 ```

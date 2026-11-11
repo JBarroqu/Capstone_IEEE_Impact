@@ -39,7 +39,10 @@ npm test               # frontend unit tests + typecheck, backend pytest (integr
 npm run e2e:serve      # (separate terminal) app with the test-only fake model on :8000
 npm run e2e            # two users through the whole product in headless Chrome
 npm run llm:check      # one live call through the real model chain
+npm run lint           # ESLint + ruff
 ```
+GitHub Actions runs all of this on every PR and push and deploys what passes: [docs/CI_CD.md](docs/CI_CD.md).
 
 ## Deploy
-Render (one Docker web service) + a Supabase project: [docs/DEPLOY.md](docs/DEPLOY.md).
+Render (a staging and a production web service) + a Supabase project for each: [docs/DEPLOY.md](docs/DEPLOY.md).
+Deploys go through GitHub Actions: [docs/CI_CD.md](docs/CI_CD.md).

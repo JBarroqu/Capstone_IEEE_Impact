@@ -1,0 +1,106 @@
+# Deploy one environment (docs/CI_CD.md): migrations on its Supabase project, then the exact commit on its Render service,
+# then wait until that commit is live and smoke-test it. Called by ci.yml after every check passes; can also be run by hand.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment
+        type: choice
+        options: [staging, production]
+        required: true
+      skip_migrations:
+        description: Skip migrations (redeploying an older commit; migrations only move forward)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # The environment holds this target's secrets; production also requires an approval before this job starts.
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.APP_URL }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      APP_URL: ${{ vars.APP_URL }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Still the newest commit on the branch?
+        id: fresh
+        run: |
+          head=$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f1)
+          if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::${GITHUB_REF_NAME} has moved on to ${head:0:7}; its own run deploys it, so this older commit is skipped."
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check this environment is configured
+        if: steps.fresh.outputs.newest == 'true'
+        run: |
+          missing=""
+          for v in APP_URL SUPABASE_PROJECT_REF SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD RENDER_DEPLOY_HOOK_URL; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::The '${{ inputs.environment }}' environment is missing:$missing. See docs/CI_CD.md, 'One-time setup'."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        if: steps.fresh.outputs.newest == 'true' && !inputs.skip_migrations
+        with:
+          version: "3.0.0"
+
+      - name: Migrations to apply
+        if: steps.fresh.outputs.newest == 'true' && !inputs.skip_migrations
+        run: supabase db push --remote="$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --skip-vault --dry-run
+
+      - name: Apply migrations (the deploy stops here if one fails)
+        if: steps.fresh.outputs.newest == 'true' && !inputs.skip_migrations
+        run: supabase db push --remote="$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --skip-vault --yes
+
+      - name: Deploy this exact commit on Render
+        if: steps.fresh.outputs.newest == 'true'
+        run: |
+          code=$(curl -sS -o render-response.txt -w '%{http_code}' -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${GITHUB_SHA}")
+          echo "Render answered $code"
+          if [ "${code:0:1}" != 2 ]; then
+            echo "::error::Render refused the deploy ($code). 404 usually means the commit isn't on the service's branch; check the hook URL secret."
+            exit 1
+          fi
+
+      - name: Wait until it is live, then smoke-test
+        if: steps.fresh.outputs.newest == 'true'
+        run: scripts/ci/wait-for-deploy.sh "$APP_URL" "$GITHUB_SHA" 30
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ inputs.environment }}: ${{ job.status }}"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- URL: ${APP_URL}"
+            echo "- Migrations: ${{ inputs.skip_migrations && 'skipped' || 'applied' }}"
+            [ "${{ steps.fresh.outputs.newest }}" = true ] || echo "- Skipped: a newer commit is on the branch and deploys in its own run"
+          } >> "$GITHUB_STEP_SUMMARY"
