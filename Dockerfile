@@ -15,8 +15,12 @@ FROM python:3.13-slim
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/backend DATA_DIR=/app/data SPA_DIR=/app/frontend/dist \
     CATALOG_PATH=/app/data/catalog.json
+# Debian security fixes land before the official image is rebuilt, so apply them here (Security workflow, Trivy).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+# Runtime packages only (tests and lint tools are in requirements-dev.txt). pip itself is then removed: the app never
+# uses it, and its bundled copies of urllib3/msgpack/setuptools are what image scanners flag.
+RUN pip install --no-cache-dir -r backend/requirements.txt && pip uninstall -y pip
 COPY backend/app backend/app
 COPY backend/scripts backend/scripts
 COPY data data
