@@ -1,5 +1,5 @@
 # Impact++: one image serving the API and the built React app on one origin (docs/ARCHITECTURE.md, T-03).
-FROM node:22-alpine AS web
+FROM node:25-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
