@@ -17,7 +17,8 @@ def model_services() -> list[str]:
 
 @router.get("/health")
 async def health():
-    return {"ok": True}
+    """Liveness, plus the running commit so a deploy can confirm the new version is live (.github/workflows/deploy.yml)."""
+    return {"ok": True, "commit": config.git_commit or None}
 
 
 @router.get("/config")

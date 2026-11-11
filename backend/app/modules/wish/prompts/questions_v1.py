@@ -74,11 +74,11 @@ def parse_questions(text: str) -> list[dict]:
     try:
         data = json.loads(strip_fences(text))
     except ValueError:
-        raise ValidationError("response was not valid JSON")
+        raise ValidationError("response was not valid JSON") from None
     try:
         qs = _Schema.model_validate(data).questions[:3]
     except PydanticError as e:
-        raise ValidationError(issues(e))
+        raise ValidationError(issues(e)) from e
     for q in qs:
         if len({a.lower() for a in q.answers}) != len(q.answers):
             raise ValidationError(f'question "{q.prompt}" has duplicate answers')

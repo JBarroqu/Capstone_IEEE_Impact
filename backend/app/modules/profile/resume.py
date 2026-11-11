@@ -73,7 +73,7 @@ def parse(text: str) -> dict:
     try:
         d = Draft.model_validate(data)
     except PydanticError as e:
-        raise ValidationError(issues(e))
+        raise ValidationError(issues(e)) from e
     contribs = []
     for c in d.contributions[:6]:
         if isinstance(c, dict) and str(c.get("title", "")).strip():

@@ -5,7 +5,7 @@
   "description": "Impact++: five capstone modules in one React + FastAPI + Supabase app. See docs/README.md.",
   "scripts": {
     "setup": "npm install && npm --prefix frontend install && npm run api:setup",
-    "api:setup": "cd backend && python3.13 -m venv .venv && .venv/bin/pip install -q -r requirements.txt",
+    "api:setup": "cd backend && python3.13 -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt",
     "db:start": "supabase start && node scripts/env-local.mjs",
     "env:local": "node scripts/env-local.mjs",
     "db:reset": "supabase db reset",
@@ -15,6 +15,7 @@
     "build": "npm --prefix frontend run build",
     "start": "cd backend && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1",
     "test": "npm --prefix frontend test && npm --prefix frontend run typecheck && cd backend && .venv/bin/pytest -q && .venv/bin/lint-imports",
+    "lint": "npm --prefix frontend run lint && cd backend && .venv/bin/ruff check .",
     "test:backend": "cd backend && .venv/bin/pytest -q",
     "schemas": "cd backend && .venv/bin/python scripts/export_schemas.py",
     "llm:check": "cd backend && .venv/bin/python scripts/llm_check.py",

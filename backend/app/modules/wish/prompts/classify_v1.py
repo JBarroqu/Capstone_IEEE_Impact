@@ -41,9 +41,9 @@ def parse_classify(text: str) -> dict:
     try:
         data = json.loads(strip_fences(text))
     except ValueError:
-        raise ValidationError("response was not valid JSON")
+        raise ValidationError("response was not valid JSON") from None
     try:
         r = _Schema.model_validate(data)
     except PydanticError as e:
-        raise ValidationError(issues(e))
+        raise ValidationError(issues(e)) from e
     return {"focus": _uniq(r.focus), "domains": _uniq(r.domains), "type": r.type}

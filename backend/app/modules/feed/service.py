@@ -3,11 +3,11 @@ fed by the other modules' domain events (D-38), with While You Were Away (D-39) 
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from ... import db, policies
-from ...contracts import BestNextMoveTrigger, DomainEvent, EventContext, FeedItem, WhileYouWereAway
+from ...contracts import DomainEvent, EventContext, FeedItem, WhileYouWereAway
 from ...policies.notifications import rule_for
 from .rules import categories
 from .tables import notifications

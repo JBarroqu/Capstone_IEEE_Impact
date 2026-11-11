@@ -4,7 +4,7 @@ now on a selected move (D-32) with reviewer and tester roles (D-30). A counting 
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import func, select, update
 
 from ... import db, policies
 from ...contracts import DomainEvent, SocialEvidence

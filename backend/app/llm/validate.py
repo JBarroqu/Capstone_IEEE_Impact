@@ -21,4 +21,4 @@ def load_json(text: str):
     try:
         return json.loads(strip_fences(text))
     except ValueError:
-        raise ValidationError("response was not valid JSON")
+        raise ValidationError("response was not valid JSON") from None

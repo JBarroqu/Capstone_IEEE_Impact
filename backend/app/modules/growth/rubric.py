@@ -62,7 +62,7 @@ def parse(text: str) -> dict:
     try:
         o = _Out.model_validate(load_json(text))
     except PydanticError as e:
-        raise ValidationError(issues(e))
+        raise ValidationError(issues(e)) from e
     crit = {}
     for k in CRITERIA:
         v = o.criteria.get(k)
