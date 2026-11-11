@@ -1,0 +1,3 @@
+# Image vulnerabilities the Security workflow should not fail on. One CVE id per line, each with a reason and a
+# review date, e.g.:
+#   CVE-2026-12345  # no fixed package for python:3.13-slim yet; recheck 2026-12-01 (Waleed)
