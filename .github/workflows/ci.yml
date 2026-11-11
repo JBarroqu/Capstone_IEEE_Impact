@@ -1,5 +1,6 @@
 # CI/CD (docs/CI_CD.md). Every PR and push runs every check; "CI passed" is the one check branch protection needs.
-# Work lands on main through PRs. A push to main that passes deploys staging, then production after an approval.
+# Work lands on main through PRs. A push to main that passes deploys production after an approval (and staging first,
+# once STAGING_ENABLED is set).
 name: CI
 
 on:
@@ -188,8 +189,9 @@ jobs:
 
   deploy-staging:
     name: Deploy staging
+    # Off until a staging environment exists: set the repository variable STAGING_ENABLED=true (docs/DEPLOY.md).
     needs: required
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.STAGING_ENABLED == 'true'
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
@@ -197,9 +199,14 @@ jobs:
 
   deploy-production:
     name: Deploy production
-    # The same commit, once it is live on staging and someone approves (production environment protection).
-    needs: deploy-staging
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # The commit that passed CI, after staging deployed it (when staging is on) and someone approves (production
+    # environment protection). !cancelled() lets it run when staging was skipped; it never runs if CI or staging failed
+    # or the run was cancelled.
+    needs: [required, deploy-staging]
+    if: >-
+      !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.required.result == 'success'
+      && (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production

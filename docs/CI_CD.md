@@ -14,8 +14,9 @@ PR or push ──► CI ──────────────────�
                └ Image: build the Docker image, smoke-run it   ┘
                                                                   │ push to main (a merged PR)
                                                                   ▼
-                                                           Deploy staging ──► (approval) Deploy production, same commit
-                                                           each: migrations → Render exact commit → wait until live → smoke test
+                                                           (approval) Deploy production
+                                                           migrations → Render exact commit → wait until live → smoke test
+                                                           (Deploy staging runs first only once STAGING_ENABLED=true)
 
 PR or push ──► Security: CodeQL, gitleaks, npm/pip audit, Trivy image scan ──► "Security passed"   (also weekly)
 Nightly    ──► Live model check (real Gemini) ──► opens an issue when it fails, closes it when it passes
@@ -26,10 +27,11 @@ Weekly     ──► Dependabot PRs into main (releases at least 14 days old)
 
 | File | Runs on | What it does |
 |---|---|---|
-| `.github/workflows/ci.yml` | every PR; pushes to `main`; merge queue; by hand | All checks below; on a push to `main`, staging then production. The gate job **CI passed** is the one check branch protection needs. |
+| `.github/workflows/ci.yml` | every PR; pushes to `main`; merge queue; by hand | All checks below; on a push to `main`, production after an approval (staging first, once `STAGING_ENABLED` is `true`). The gate job **CI passed** is the one check branch protection needs. |
 | `.github/workflows/deploy.yml` | called by CI; by hand (Actions → Deploy → Run workflow) | Deploys one environment. |
 | `.github/workflows/security.yml` | every PR; pushes; Mondays 06:17 UTC; by hand | Security checks. Gate job: **Security passed**. |
 | `.github/workflows/llm-check.yml` | daily 13:23 UTC; by hand | `npm run llm:check -- --all` against the real models. |
+| `.github/workflows/keep-awake.yml` | every 10 min, 7am-midnight Arizona; by hand | Pings production so the free Render service doesn't sleep. Never fails. Production only, to stay inside the 750 free hours. |
 | `.github/dependabot.yml` | weekly | Update PRs for npm, pip, Actions and the Docker base images. |
 
 ### CI jobs (run in parallel)
@@ -59,8 +61,9 @@ Weekly     ──► Dependabot PRs into main (releases at least 14 days old)
 3. Lists, then applies, pending migrations to that environment's Supabase project (`supabase db push --remote=<ref> --skip-vault`). If a migration fails, the deploy stops before the app changes.
 4. Calls the Render deploy hook with `&ref=<commit>`, so Render builds exactly the commit that passed. Render's own auto-deploy is off (`render.yaml`).
 5. Waits, for up to 30 minutes, until `/api/v1/health` reports that commit (Render sets `RENDER_GIT_COMMIT`). Then it runs the same smoke checks as the Image job.
-6. Production runs only after staging succeeded for the same commit, and waits for an approval before step 1 (GitHub
-   environment protection). If several merges land before anyone approves, only the newest one waits; older ones are
+6. Production waits for an approval before step 1 (GitHub environment protection). There is no staging yet: the
+   staging job is skipped unless the repository variable `STAGING_ENABLED` is `true`, and once it is on, production
+   runs only after staging succeeded for the same commit. Production never runs if CI or staging failed. If several merges land before anyone approves, only the newest one waits; older ones are
    replaced.
 
 If a new version fails Render's health check, Render keeps serving the previous one. The deploy job then times out at step 5 and fails, which shows up in Actions.
@@ -71,53 +74,23 @@ If a new version fails Render's health check, Render keeps serving the previous 
 - **Image scan (Trivy)** fails on HIGH or CRITICAL issues that have a fix. The Dockerfile applies Debian security updates and removes pip from the final image.
 - **To accept a finding:** add it to `.trivyignore` with a reason and a review date, or fix it with a dependency bump.
 
-## One-time setup (repository admin)
+## One-time setup
+Already done on GitHub: `main` is the default branch; the `production` environment exists (deploys from `main` only, needs an
+approval; `staging` exists too, empty and unused until staging is set up); the `main` ruleset requires a PR with 1 approval plus **CI passed** and
+**Security passed**; Dependabot alerts, secret scanning and push protection are on.
 
-Do these once, in order. Steps 1–3 are outside GitHub.
-
-1. **Default branch.** `main` must be the default branch (Settings → General). Dependabot and scheduled workflows (the
-   weekly security scan, the nightly model check) only run from the default branch.
-2. **Supabase:** two projects, `impact-staging` and `impact-production` (docs/DEPLOY.md lists the auth and URL settings for each).
-   - For each, note the **project ref** (the id in its URL) and the **database password**.
-   - Create one **access token** at supabase.com/dashboard/account/tokens.
-   - Add each app's URL to that project's Auth redirect URLs.
-3. **Render:** New → Blueprint → this repository.
-   - This creates `impact-app` (production) and `impact-app-staging`, both from `main`. Neither deploys on its own; the
-     pipeline names the commit. Fill in each service's environment values from its own Supabase project.
-   - Then open each service → Settings → **Deploy Hook**, and copy the URL.
-4. **GitHub environments:** Settings → Environments. Create both:
-
-   | Environment | Deployment branches | Protection | Variables | Secrets |
-   |---|---|---|---|---|
-   | `staging` | `main` only | none | `APP_URL`, `SUPABASE_PROJECT_REF` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `RENDER_DEPLOY_HOOK_URL` |
-   | `production` | `main` only | Required reviewers (at least one person besides the pusher) | same | same, with production values |
-
-   The same with `gh`, from the repo folder (each `secret set` prompts for its value, so nothing lands in your shell history):
-   ```
-   for env in staging production; do gh api -X PUT "repos/{owner}/{repo}/environments/$env" >/dev/null; done
-   gh variable set APP_URL --env staging --body https://impact-app-staging.onrender.com
-   gh variable set SUPABASE_PROJECT_REF --env staging --body <staging-ref>
-   gh secret set SUPABASE_ACCESS_TOKEN --env staging
-   gh secret set SUPABASE_DB_PASSWORD --env staging
-   gh secret set RENDER_DEPLOY_HOOK_URL --env staging
-   # repeat for --env production with production values; then add required reviewers and branch rules in the UI
-   ```
-5. **Repository secrets** (Settings → Secrets and variables → Actions) for the nightly model check: `GEMINI_API_KEY`, plus optional `OPENROUTER_API_KEY` and `GROQ_API_KEY`.
-6. **Branch rules** (Settings → Rules → New branch ruleset):
-   - `main`:
-     - require a pull request with 1 approval;
-     - require the status checks **CI passed** and **Security passed**;
-     - block force pushes and deletion.
-   - Because both checks are required before merging, `main` only ever receives commits that passed, and staging
-     deploys each merge automatically.
-7. **Security features** (Settings → Code security; free for public repositories): turn on Dependabot alerts, secret scanning and push protection. CodeQL results appear under Security → Code scanning.
+Still to do:
+1. Supabase, Render and the `production` environment values: follow [DEPLOY.md](DEPLOY.md), "First deploy, in order".
+2. For the nightly model check: on github.com, the repository → **Settings** → **Secrets and variables** → **Actions**
+   → **Repository secrets** → **New repository secret** (a repository secret, not an environment one), name `GEMINI_API_KEY`, value from aistudio.google.com/apikey.
 
 ## Day to day
 - **Making a change:**
   1. Branch from `main`.
   2. Run `npm run lint && npm test` before pushing (the integration tests need `npm run db:start`).
   3. Open a PR into `main`. CI and Security run on it.
-  4. Merge once both pass and it's approved. Staging deploys; production follows on approval.
+  4. Merge once both pass and it's approved. Production deploys once you approve the deploy (Actions → the run →
+     **Review deployments** → tick `production` → **Approve and deploy**).
 - **To reproduce the CI e2e:**
   1. Build with `npm run build`.
   2. Run `scripts/ci/run-e2e.sh default`.

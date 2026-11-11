@@ -44,5 +44,5 @@ npm run lint           # ESLint + ruff
 GitHub Actions runs all of this on every PR and push and deploys what passes: [docs/CI_CD.md](docs/CI_CD.md).
 
 ## Deploy
-Render (a staging and a production web service) + a Supabase project for each: [docs/DEPLOY.md](docs/DEPLOY.md).
+Render (one production web service) + one Supabase project: [docs/DEPLOY.md](docs/DEPLOY.md).
 Deploys go through GitHub Actions: [docs/CI_CD.md](docs/CI_CD.md).
