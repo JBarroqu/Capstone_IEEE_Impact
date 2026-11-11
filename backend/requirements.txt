@@ -1,14 +1,12 @@
+# Runtime dependencies (the production image installs only these). Test and CI tools: requirements-dev.txt.
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
 sqlalchemy[asyncio]==2.1.6
 asyncpg==0.32.0
 pydantic==2.14.1
 httpx==0.28.1
-python-dotenv
-pytest==9.2.0
-pytest-asyncio==1.4.1
+python-dotenv==1.2.4
 pyjwt[crypto]==2.15.1
 python-multipart==0.0.33
 pypdf==6.21.4
 python-docx==1.2.0
-import-linter==2.15

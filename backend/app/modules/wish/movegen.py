@@ -58,7 +58,7 @@ def parse_model_json(text: str, skill_ids: list[str] | None = None) -> list[RawM
     try:
         moves = RawResponse.model_validate(data).moves
     except PydanticError as e:
-        raise ValidationError(issues(e))
+        raise ValidationError(issues(e)) from e
     if skill_ids:
         bad = [m.skillId for m in moves if m.skillId not in skill_ids]
         if bad:

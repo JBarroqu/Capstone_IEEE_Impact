@@ -29,6 +29,8 @@ def _provider() -> str:
 class Config:
     env_name = env("ENV", "development")
     app_version = "1.0.0-integration"
+    # The deployed commit (Render sets RENDER_GIT_COMMIT); the deploy pipeline waits for /health to report it.
+    git_commit = env("RENDER_GIT_COMMIT") or env("GIT_COMMIT")
 
     # Supabase
     database_url = env("DATABASE_URL")

@@ -4,7 +4,6 @@ import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict
 

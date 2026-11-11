@@ -2,11 +2,11 @@
 Skipped when local Supabase isn't running. Users are created through Supabase Auth and deleted afterwards."""
 import os
 import uuid
+from pathlib import Path
 
 import httpx
 import pytest
 
-from app import config as config_mod
 from app.config import config
 from app.llm import backends
 from app.platform.rate_limit import limiter
@@ -21,7 +21,20 @@ def _up() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _up(), reason="local Supabase is not running (supabase start)")
+if not _up() and os.environ.get("REQUIRE_SUPABASE") == "1":
+    # CI sets REQUIRE_SUPABASE=1 so a database that failed to start fails the run instead of skipping every test.
+    raise RuntimeError(f"REQUIRE_SUPABASE=1 but Supabase is not reachable at {SUPA}")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip this folder's tests when Supabase is down. (A `pytestmark` in conftest.py doesn't reach other files.)"""
+    if _up():
+        return
+    here = Path(__file__).parent
+    skip = pytest.mark.skip(reason="local Supabase is not running (npm run db:start)")
+    for item in items:
+        if here in item.path.parents:
+            item.add_marker(skip)
 
 
 @pytest.fixture(autouse=True)

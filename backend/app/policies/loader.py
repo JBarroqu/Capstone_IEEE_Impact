@@ -35,7 +35,7 @@ def coerce(p: PolicyDef, raw: Any) -> Any:
         try:
             v = int(raw)
         except (TypeError, ValueError):
-            raise PolicyError(f"{p.key}: expected a whole number, got {raw!r}")
+            raise PolicyError(f"{p.key}: expected a whole number, got {raw!r}") from None
         if (p.min is not None and v < p.min) or (p.max is not None and v > p.max):
             raise PolicyError(f"{p.key}: {v} is outside {p.min}..{p.max}")
         return v

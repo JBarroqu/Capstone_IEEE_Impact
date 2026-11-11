@@ -49,7 +49,7 @@ async def verify(token: str) -> CurrentUser:
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError as e:
-        raise AuthError(f"malformed token: {e}")
+        raise AuthError(f"malformed token: {e}") from e
     alg, kid = header.get("alg"), header.get("kid")
     opts = {"require": ["exp", "sub", "aud", "iss"]}
     try:
@@ -67,7 +67,7 @@ async def verify(token: str) -> CurrentUser:
             claims = jwt.decode(token, keys[kid].key, algorithms=["ES256", "RS256"], audience="authenticated",
                                 issuer=_issuer(), options=opts)
     except jwt.PyJWTError as e:
-        raise AuthError(str(e))
+        raise AuthError(str(e)) from e
     if claims.get("role") != "authenticated":
         raise AuthError("not an authenticated user token")
     return CurrentUser(id=claims["sub"], email=claims.get("email"))
@@ -87,10 +87,10 @@ async def current_user(req: Request) -> CurrentUser:
         return await verify(token)
     except AuthError as e:
         log.info("token rejected: %s", e)
-        raise HTTPException(401, "unauthorized")
+        raise HTTPException(401, "unauthorized") from None
     except httpx.HTTPError:
         log.exception("JWKS fetch failed")
-        raise HTTPException(503, "auth unavailable")
+        raise HTTPException(503, "auth unavailable") from None
 
 
 User = Depends(current_user)
