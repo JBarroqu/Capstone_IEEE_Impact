@@ -1,13 +1,16 @@
 # Deploy
 
-The app runs as one Render web service (API + React build) and one Supabase project (Postgres, Auth, Storage). The Wish Engine's earlier deployment notes are in `docs/wish-engine/DEPLOY.md`.
+Each environment is one Render web service (API + React build) and one Supabase project (Postgres, Auth, Storage).
+There are two: **staging** (from `integration`) and **production** (from `main`). GitHub Actions deploys them, after
+every check passes ([CI_CD.md](CI_CD.md)). The Wish Engine's earlier deployment notes are in `docs/wish-engine/DEPLOY.md`.
 
-## Supabase project
+## Supabase projects
+Do this once for staging and once for production.
 1. **Create a project** in the same region as Render (Oregon pairs with `us-west`).
-2. **Apply the migrations:**
+2. **Migrations.** The first deploy through GitHub Actions applies them. To apply them by hand (CLI v3: without
+   `--remote`, `db push` targets your *local* database):
    ```
-   supabase link --project-ref <ref>
-   supabase db push
+   supabase db push --remote=<ref> --password <db-password>
    ```
    This creates the schemas, tables, RLS, the new-user trigger and the storage buckets.
 3. **Sign-in settings**, under Authentication:
@@ -19,15 +22,18 @@ The app runs as one Render web service (API + React build) and one Supabase proj
 4. **Database connection string.** Open Connect → Shared pooler → **Session mode** (port 5432), copy it, and use it as `DATABASE_URL`. Render has no IPv6, so the direct connection doesn't work there.
 5. **Keys.** Copy the URL, the publishable (anon) key, and the secret (service role) key.
 
-## Render service
-`render.yaml` defines one Docker web service, `impact-app` (Dockerfile at the repo root):
+## Render services
+`render.yaml` defines two Docker web services from the root Dockerfile: `impact-app` (production, branch `main`) and
+`impact-app-staging` (branch `integration`, free plan). Render's auto-deploy is **off** for both: the pipeline applies
+migrations, then calls each service's deploy hook with the exact commit that passed. Each service:
 - a multi-stage build compiles `frontend/` (the `VITE_*` values are build args) and copies the build into the Python image;
 - it runs `uvicorn app.main:app --workers 1`, serving the API and the React app on one origin;
 - the health check is `/api/v1/health`.
 
-Apply the migrations to the production project first (`supabase link --project-ref <ref> && supabase db push`).
+Migrations are applied by the deploy workflow before each deploy. To apply them by hand:
+`supabase db push --remote=<ref> --password <db-password>`.
 
-Environment variables:
+Environment variables (each service gets its own environment's values):
 
 | Var | Value |
 |---|---|

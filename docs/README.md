@@ -29,7 +29,8 @@ Impact++ joins five capstone modules into one product. A student describes where
   7. [SECURITY.md](SECURITY.md)
   8. [DEPLOY.md](DEPLOY.md): Supabase + Render
   9. [TESTING.md](TESTING.md)
-  10. [PROVENANCE.md](PROVENANCE.md): where each piece came from, and a data note for branch owners
-  11. [ROADMAP.md](ROADMAP.md): phases and status
+  10. [CI_CD.md](CI_CD.md): GitHub Actions checks, deploys, and the one-time setup
+  11. [PROVENANCE.md](PROVENANCE.md): where each piece came from, and a data note for branch owners
+  12. [ROADMAP.md](ROADMAP.md): phases and status
 
 The Wish Engine's earlier docs are kept in [wish-engine/](wish-engine/).

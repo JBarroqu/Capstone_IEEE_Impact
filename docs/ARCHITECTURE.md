@@ -166,6 +166,6 @@ The events route accepts either the token or a valid ticket.
 - **Render:** one Docker web service. A multi-stage build compiles the React app, then runs uvicorn with 1 worker serving the API and the static build.
 - **Supabase:** one project.
   - The API connects through the shared pooler in session mode (port 5432, IPv4), because Render has no IPv6 route to the direct database host.
-  - Migrations are applied with `supabase db push`.
+  - Migrations are applied by the deploy workflow (`supabase db push --remote=<ref>`) before each deploy ([CI_CD.md](CI_CD.md)).
 
 Step-by-step setup is in `DEPLOY.md`.

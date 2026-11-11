@@ -62,6 +62,25 @@ In-memory token buckets (T-11), per IP, per user and global. The global limits h
   - HSTS in production.
 - **API docs** (`/docs`) are off in production.
 
+## Supply chain and scanning
+Details in [CI_CD.md](CI_CD.md).
+- **Checks on every PR and push, and weekly:**
+  - CodeQL (Python, TypeScript, workflows)
+  - gitleaks over the full git history
+  - npm and pip audits
+  - a Trivy scan of the production image
+- **The production image:**
+  - installs only `backend/requirements.txt`; test tools live in `requirements-dev.txt`;
+  - applies Debian security updates at build time;
+  - removes pip.
+- **Pinning:**
+  - GitHub Actions are pinned to full commit SHAs, and each workflow gets only the permissions it uses.
+  - Dependabot proposes updates only for releases at least 14 days old.
+- **Deploys:**
+  - Only commits that passed every check deploy, and each deploy targets that exact commit.
+  - Production needs an approval.
+  - Deploy secrets live in GitHub environments, scoped to their branch.
+
 ## Known risks (accepted for now)
 - **Single worker.** Rate limits and model health are per process and reset on restart (T-11).
 - **Model provider data.** On Gemini's free tier, Google may use prompts and people may review them. Use a paid key for real users, and say what is sent in the privacy text.
