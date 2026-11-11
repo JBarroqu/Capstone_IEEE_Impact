@@ -1,0 +1,108 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "title": "Body",
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "Social",
+        "Pro",
+        "Enablement",
+        "Impact",
+        "Events",
+        "Growth"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "link": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Link"
+    },
+    "readAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Readat"
+    },
+    "schemaVersion": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "sourceId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Sourceid"
+    },
+    "sourceModule": {
+      "enum": [
+        "profile",
+        "wish",
+        "growth",
+        "social",
+        "feed"
+      ],
+      "title": "Sourcemodule",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "userId",
+    "category",
+    "kind",
+    "title",
+    "body",
+    "link",
+    "sourceModule",
+    "sourceId",
+    "createdAt",
+    "readAt"
+  ],
+  "title": "FeedItem",
+  "type": "object"
+}

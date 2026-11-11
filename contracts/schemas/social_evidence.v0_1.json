@@ -1,0 +1,108 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "comment": {
+      "default": "",
+      "maxLength": 1000,
+      "title": "Comment",
+      "type": "string"
+    },
+    "confirmed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confirmed"
+    },
+    "countsTowardPoints": {
+      "title": "Countstowardpoints",
+      "type": "boolean"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "evidenceId": {
+      "title": "Evidenceid",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "invitationId": {
+      "title": "Invitationid",
+      "type": "string"
+    },
+    "ownerId": {
+      "title": "Ownerid",
+      "type": "string"
+    },
+    "rating": {
+      "anyOf": [
+        {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rating"
+    },
+    "reviewerId": {
+      "title": "Reviewerid",
+      "type": "string"
+    },
+    "reviewerRole": {
+      "enum": [
+        "reviewer",
+        "tester"
+      ],
+      "title": "Reviewerrole",
+      "type": "string"
+    },
+    "reviewerTier": {
+      "enum": [
+        "Proficient",
+        "Demonstrated",
+        "Verified",
+        "Mentor"
+      ],
+      "title": "Reviewertier",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "selectedMoveId": {
+      "title": "Selectedmoveid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "invitationId",
+    "evidenceId",
+    "selectedMoveId",
+    "ownerId",
+    "reviewerId",
+    "reviewerRole",
+    "reviewerTier",
+    "countsTowardPoints",
+    "createdAt"
+  ],
+  "title": "SocialEvidence",
+  "type": "object"
+}

@@ -1,0 +1,17 @@
+{
+  "domains": {
+    "career": ["job", "offer", "resume", "internship", "intern", "interview", "faang", "swe", "hire", "recruiter", "referral", "career", "new-grad", "new grad", "salary", "industry"],
+    "academic": ["gpa", "grade", "degree", "graduate", "grad school", "master", "phd", "thesis", "professor", "course", "class", "gre", "recommendation", "research"],
+    "technical": ["learn", "ml", "machine learning", "devops", "cloud", "leetcode", "algorithm", "build", "engine", "system", "code", "api", "open-source", "open source", "pr", "capstone", "portfolio", "python", "backend", "inference"],
+    "venture": ["startup", "saas", "company", "business", "founder", "customers", "product", "impact", "nonprofit", "helps people", "help people", "launch", "revenue"],
+    "leadership": ["lead", "manager", "team", "influence", "network", "connect", "community", "mentor", "club", "officer", "speak", "audience"]
+  },
+  "focus": {
+    "learn": ["learn", "understand", "how", "study", "master", "fluency", "fluent", "explore"],
+    "goal": ["get", "land", "achieve", "win", "offer", "gpa", "into", "pass", "hit", "internship", "accepted"],
+    "system": ["habit", "routine", "consistent", "system", "schedule", "every day", "discipline", "organize"],
+    "advance": ["build", "ship", "portfolio", "resume", "promotion", "capstone", "grow", "impressive", "pr", "launch", "start"],
+    "lead": ["lead", "manager", "influence", "run", "organize", "president", "mentor", "audience", "speak"],
+    "connect": ["connect", "network", "meet", "people", "community", "mentor", "alumni", "friends", "referral"]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "_about": "Growth taxonomy (D-08, D-09, D-27). Careers, their skills (core skills count toward role tier, D-28) and the opportunities tiers unlock. Copied from Growth-Validation catalog.py @ c657bab; the static MOVES list is not used (D-29). Edit this file to add careers or opportunities.",
+  "careers": [
+    {
+      "id": "data_analyst",
+      "name": "Data Analyst",
+      "skills": [
+        { "id": "sql", "name": "SQL", "core": true },
+        { "id": "excel", "name": "Excel", "core": true },
+        { "id": "python", "name": "Python", "core": true },
+        { "id": "data_viz", "name": "Data Visualization", "core": true },
+        { "id": "statistics", "name": "Statistics", "core": false }
+      ]
+    },
+    {
+      "id": "software_engineer",
+      "name": "Software Engineer",
+      "skills": [
+        { "id": "programming", "name": "Programming", "core": true },
+        { "id": "git", "name": "Git & Version Control", "core": true },
+        { "id": "testing", "name": "Software Testing", "core": true },
+        { "id": "databases", "name": "Databases", "core": true },
+        { "id": "systems", "name": "System Design", "core": false }
+      ]
+    },
+    {
+      "id": "ux_designer",
+      "name": "UX Designer",
+      "skills": [
+        { "id": "research", "name": "User Research", "core": true },
+        { "id": "wireframing", "name": "Wireframing", "core": true },
+        { "id": "prototyping", "name": "Prototyping", "core": true },
+        { "id": "usability", "name": "Usability Testing", "core": true }
+      ]
+    },
+    {
+      "id": "cybersecurity",
+      "name": "Cybersecurity Analyst",
+      "skills": [
+        { "id": "networking", "name": "Networking", "core": true },
+        { "id": "security", "name": "Security Fundamentals", "core": true },
+        { "id": "linux", "name": "Linux", "core": true },
+        { "id": "incident", "name": "Incident Response", "core": true }
+      ]
+    }
+  ],
+  "opportunities": [
+    { "id": "study-group", "name": "Peer study group", "tier": "Familiar", "kind": "real", "description": "Join a skill-focused peer study group." },
+    { "id": "peer-reviewer", "name": "Peer Reviewer role", "tier": "Proficient", "kind": "real", "description": "Become eligible to review evidence for this skill." },
+    { "id": "mentor-match", "name": "Mentor match", "tier": "Proficient", "kind": "seeded", "description": "Browse seeded mentor profiles." },
+    { "id": "recruiter-visibility", "name": "Recruiter visibility", "tier": "Demonstrated", "kind": "flag", "description": "Your profile is marked as eligible for recruiter visibility." },
+    { "id": "partner-brief", "name": "Partner project brief", "tier": "Demonstrated", "kind": "seeded", "description": "Explore a seeded partner project brief." },
+    { "id": "ieee-nomination", "name": "IEEE nomination", "tier": "Verified", "kind": "display", "description": "Verified-tier recognition preview." },
+    { "id": "ieee-certificate", "name": "IEEE co-signed certificate", "tier": "Verified", "kind": "display", "description": "Certificate eligibility display." }
+  ]
+}

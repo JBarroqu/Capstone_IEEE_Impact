@@ -1,0 +1,33 @@
+{
+  "name": "impact-plus-plus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Impact++: five capstone modules in one React + FastAPI + Supabase app. See docs/README.md.",
+  "scripts": {
+    "setup": "npm install && npm --prefix frontend install && npm run api:setup",
+    "api:setup": "cd backend && python3.13 -m venv .venv && .venv/bin/pip install -q -r requirements.txt",
+    "db:start": "supabase start && node scripts/env-local.mjs",
+    "env:local": "node scripts/env-local.mjs",
+    "db:reset": "supabase db reset",
+    "db:stop": "supabase stop",
+    "api": "cd backend && .venv/bin/uvicorn app.main:app --port 8000 --reload",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "cd backend && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1",
+    "test": "npm --prefix frontend test && npm --prefix frontend run typecheck && cd backend && .venv/bin/pytest -q && .venv/bin/lint-imports",
+    "test:backend": "cd backend && .venv/bin/pytest -q",
+    "schemas": "cd backend && .venv/bin/python scripts/export_schemas.py",
+    "llm:check": "cd backend && .venv/bin/python scripts/llm_check.py",
+    "seed": "cd backend && .venv/bin/python scripts/seed.py",
+    "e2e:serve": "npm run build && cd backend && ENV=test LLM_FAKE=1 .venv/bin/uvicorn app.main:app --port 8000 --workers 1",
+    "e2e": "tsx e2e/full-loop.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "supabase": "^3.0.0"
+  }
+}
