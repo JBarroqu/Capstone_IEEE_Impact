@@ -19,7 +19,7 @@ This codebase was started from the `wish-engine` branch. The other modules were 
   - Commit after each stage. Never push without being asked.
   - Remote `origin` = `waleedalfar/Capstone_IEEE_Impact` (moved from JBarroqu; the old URL redirects); it is the only remote. `main` is the default and only long-lived branch: branch from it and open a PR into it. (`integration` is retired.)
 - **CI must pass** (`docs/CI_CD.md`)
-  - Checks: "CI passed" and "Security passed". A merge to `main` deploys staging, then production after an approval; only commits that pass deploy.
+  - Checks: "CI passed" and "Security passed". A merge to `main` deploys production after an approval (no staging yet; `STAGING_ENABLED` turns it on); only commits that pass deploy.
   - Before pushing: `npm run lint && npm test`. Pin new Actions to a full commit SHA with the version in a comment.
   - Runtime Python packages go in `backend/requirements.txt`; test and CI tools in `requirements-dev.txt`.
 - **Every switchable decision is a policy**
