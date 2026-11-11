@@ -1,8 +1,8 @@
 # Deploy
 
 Each environment is one Render web service (API + React build) and one Supabase project (Postgres, Auth, Storage).
-There are two: **staging** (from `integration`) and **production** (from `main`). GitHub Actions deploys them, after
-every check passes ([CI_CD.md](CI_CD.md)). The Wish Engine's earlier deployment notes are in `docs/wish-engine/DEPLOY.md`.
+There are two, both built from `main`: **staging** deploys every commit that passes CI, and **production** deploys the same
+commit after an approval. GitHub Actions runs both ([CI_CD.md](CI_CD.md)). The Wish Engine's earlier deployment notes are in `docs/wish-engine/DEPLOY.md`.
 
 ## Supabase projects
 Do this once for staging and once for production.
@@ -23,8 +23,8 @@ Do this once for staging and once for production.
 5. **Keys.** Copy the URL, the publishable (anon) key, and the secret (service role) key.
 
 ## Render services
-`render.yaml` defines two Docker web services from the root Dockerfile: `impact-app` (production, branch `main`) and
-`impact-app-staging` (branch `integration`, free plan). Render's auto-deploy is **off** for both: the pipeline applies
+`render.yaml` defines two Docker web services from the root Dockerfile, both on branch `main`: `impact-app`
+(production) and `impact-app-staging` (free plan). Render's auto-deploy is **off** for both: the pipeline applies
 migrations, then calls each service's deploy hook with the exact commit that passed. Each service:
 - a multi-stage build compiles `frontend/` (the `VITE_*` values are build args) and copies the build into the Python image;
 - it runs `uvicorn app.main:app --workers 1`, serving the API and the React app on one origin;

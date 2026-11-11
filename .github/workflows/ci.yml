@@ -1,11 +1,11 @@
 # CI/CD (docs/CI_CD.md). Every PR and push runs every check; "CI passed" is the one check branch protection needs.
-# A push to integration that passes deploys staging; a push to main that passes deploys production after approval.
+# Work lands on main through PRs. A push to main that passes deploys staging, then production after an approval.
 name: CI
 
 on:
   pull_request:
   push:
-    branches: [main, integration]
+    branches: [main]
   merge_group:
   workflow_dispatch:
 
@@ -189,7 +189,7 @@ jobs:
   deploy-staging:
     name: Deploy staging
     needs: required
-    if: github.event_name == 'push' && github.ref == 'refs/heads/integration'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
@@ -197,7 +197,8 @@ jobs:
 
   deploy-production:
     name: Deploy production
-    needs: required
+    # The same commit, once it is live on staging and someone approves (production environment protection).
+    needs: deploy-staging
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy.yml
     with:

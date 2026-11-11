@@ -1,6 +1,6 @@
 # Roadmap
 
-Each phase ends with `npm test` green and something to demo. Work happens on `integration`; commits are pushed only when asked.
+Each phase ends with `npm test` green and something to demo. Work happens on branches merged into `main` by PR; commits are pushed only when asked.
 
 ## Phase 0: architecture and docs (done)
 - [x] Read every module branch

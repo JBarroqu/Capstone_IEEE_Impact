@@ -43,9 +43,9 @@ services:
         value: "1"
 
   - type: web
-    name: impact-app-staging    # staging, from the integration branch
+    name: impact-app-staging    # staging; deploys every commit that passes CI on main, before production
     runtime: docker
-    branch: integration
+    branch: main
     autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .

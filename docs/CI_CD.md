@@ -1,6 +1,7 @@
 # CI/CD
 
-GitHub Actions checks every pull request and push, and deploys only commits that passed every check.
+GitHub Actions checks every pull request and push, and deploys only commits that passed every check. `main` is the
+one long-lived branch and the default: work happens on short branches merged into `main` by pull request.
 
 ```
 PR or push ──► CI ─────────────────────────────────────────────┐
@@ -11,21 +12,21 @@ PR or push ──► CI ──────────────────�
                │          integration tests,                   │
                │          two users in Chrome (2 policy sets)  │
                └ Image: build the Docker image, smoke-run it   ┘
-                                                                  │ push to integration     │ push to main
-                                                                  ▼                         ▼
-                                                           Deploy staging         (approval) Deploy production
-                                                           migrations → Render exact commit → wait until live → smoke test
+                                                                  │ push to main (a merged PR)
+                                                                  ▼
+                                                           Deploy staging ──► (approval) Deploy production, same commit
+                                                           each: migrations → Render exact commit → wait until live → smoke test
 
 PR or push ──► Security: CodeQL, gitleaks, npm/pip audit, Trivy image scan ──► "Security passed"   (also weekly)
 Nightly    ──► Live model check (real Gemini) ──► opens an issue when it fails, closes it when it passes
-Weekly     ──► Dependabot PRs into integration (releases at least 14 days old)
+Weekly     ──► Dependabot PRs into main (releases at least 14 days old)
 ```
 
 ## Workflows
 
 | File | Runs on | What it does |
 |---|---|---|
-| `.github/workflows/ci.yml` | every PR; pushes to `main` and `integration`; merge queue; by hand | All checks below, then the deploy for that branch. The gate job **CI passed** is the one check branch protection needs. |
+| `.github/workflows/ci.yml` | every PR; pushes to `main`; merge queue; by hand | All checks below; on a push to `main`, staging then production. The gate job **CI passed** is the one check branch protection needs. |
 | `.github/workflows/deploy.yml` | called by CI; by hand (Actions → Deploy → Run workflow) | Deploys one environment. |
 | `.github/workflows/security.yml` | every PR; pushes; Mondays 06:17 UTC; by hand | Security checks. Gate job: **Security passed**. |
 | `.github/workflows/llm-check.yml` | daily 13:23 UTC; by hand | `npm run llm:check -- --all` against the real models. |
@@ -58,7 +59,9 @@ Weekly     ──► Dependabot PRs into integration (releases at least 14 days 
 3. Lists, then applies, pending migrations to that environment's Supabase project (`supabase db push --remote=<ref> --skip-vault`). If a migration fails, the deploy stops before the app changes.
 4. Calls the Render deploy hook with `&ref=<commit>`, so Render builds exactly the commit that passed. Render's own auto-deploy is off (`render.yaml`).
 5. Waits, for up to 30 minutes, until `/api/v1/health` reports that commit (Render sets `RENDER_GIT_COMMIT`). Then it runs the same smoke checks as the Image job.
-6. Production waits for an approval before step 1 (GitHub environment protection).
+6. Production runs only after staging succeeded for the same commit, and waits for an approval before step 1 (GitHub
+   environment protection). If several merges land before anyone approves, only the newest one waits; older ones are
+   replaced.
 
 If a new version fails Render's health check, Render keeps serving the previous one. The deploy job then times out at step 5 and fails, which shows up in Actions.
 
@@ -72,19 +75,21 @@ If a new version fails Render's health check, Render keeps serving the previous 
 
 Do these once, in order. Steps 1–3 are outside GitHub.
 
-1. **Default branch.** Dependabot and scheduled workflows (the weekly security scan, the nightly model check) only run from the repository's default branch (`main`). They start once these files reach `main`. CI and deploys work from `integration` straight away.
+1. **Default branch.** `main` must be the default branch (Settings → General). Dependabot and scheduled workflows (the
+   weekly security scan, the nightly model check) only run from the default branch.
 2. **Supabase:** two projects, `impact-staging` and `impact-production` (docs/DEPLOY.md lists the auth and URL settings for each).
    - For each, note the **project ref** (the id in its URL) and the **database password**.
    - Create one **access token** at supabase.com/dashboard/account/tokens.
    - Add each app's URL to that project's Auth redirect URLs.
 3. **Render:** New → Blueprint → this repository.
-   - This creates `impact-app` (from `main`) and `impact-app-staging` (from `integration`). Fill in each service's environment values from its own Supabase project.
+   - This creates `impact-app` (production) and `impact-app-staging`, both from `main`. Neither deploys on its own; the
+     pipeline names the commit. Fill in each service's environment values from its own Supabase project.
    - Then open each service → Settings → **Deploy Hook**, and copy the URL.
 4. **GitHub environments:** Settings → Environments. Create both:
 
    | Environment | Deployment branches | Protection | Variables | Secrets |
    |---|---|---|---|---|
-   | `staging` | `integration` only | none | `APP_URL`, `SUPABASE_PROJECT_REF` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `RENDER_DEPLOY_HOOK_URL` |
+   | `staging` | `main` only | none | `APP_URL`, `SUPABASE_PROJECT_REF` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `RENDER_DEPLOY_HOOK_URL` |
    | `production` | `main` only | Required reviewers (at least one person besides the pusher) | same | same, with production values |
 
    The same with `gh`, from the repo folder (each `secret set` prompts for its value, so nothing lands in your shell history):
@@ -103,11 +108,16 @@ Do these once, in order. Steps 1–3 are outside GitHub.
      - require a pull request with 1 approval;
      - require the status checks **CI passed** and **Security passed**;
      - block force pushes and deletion.
-   - `integration`: block force pushes and deletion. Direct pushes stay allowed, and staging still only deploys commits that pass. To make PRs mandatory here too, add the same two required checks.
+   - Because both checks are required before merging, `main` only ever receives commits that passed, and staging
+     deploys each merge automatically.
 7. **Security features** (Settings → Code security; free for public repositories): turn on Dependabot alerts, secret scanning and push protection. CodeQL results appear under Security → Code scanning.
 
 ## Day to day
-- **Before pushing:** `npm run lint && npm test`. The integration tests need `npm run db:start`.
+- **Making a change:**
+  1. Branch from `main`.
+  2. Run `npm run lint && npm test` before pushing (the integration tests need `npm run db:start`).
+  3. Open a PR into `main`. CI and Security run on it.
+  4. Merge once both pass and it's approved. Staging deploys; production follows on approval.
 - **To reproduce the CI e2e:**
   1. Build with `npm run build`.
   2. Run `scripts/ci/run-e2e.sh default`.
