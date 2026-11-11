@@ -17,7 +17,7 @@ The branch was cut from `wish-engine`. The other modules were ported by hand (`d
 - **Commits and pushes**
   - No `Co-Authored-By` or "Generated with Claude Code" lines in commits or PRs; plain messages.
   - Commit after each stage. Never push without being asked.
-  - Remote `capstone` = `JBarroqu/Capstone_IEEE_Impact`, branch `integration`.
+  - Remote `capstone` = `waleedalfar/Capstone_IEEE_Impact` (moved from JBarroqu; the old URL redirects), branch `integration`.
 - **CI must pass** (`docs/CI_CD.md`)
   - Checks: "CI passed" and "Security passed". Staging deploys from `integration`, production from `main` after approval; only commits that pass deploy.
   - Before pushing: `npm run lint && npm test`. Pin new Actions to a full commit SHA with the version in a comment.
